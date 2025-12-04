@@ -1,0 +1,77 @@
+# ====================================
+# Docker Compose - Frontend + Backend
+# Para desarrollo y producción
+# ====================================
+
+services:
+  # Base de datos PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: basketball_db
+    environment:
+      POSTGRES_DB: basketball_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - basketball_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Django
+  backend:
+    build:
+      context: ../baloncesto_backend
+      dockerfile: Dockerfile
+    container_name: basketball_backend
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ../baloncesto_backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-basketball-module-secret-key
+      - DB_NAME=basketball_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,backend
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - basketball_network
+    restart: unless-stopped
+
+  # Frontend React (Producción)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: basketball_frontend
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - basketball_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  basketball_network:
+    driver: bridge

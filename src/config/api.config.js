@@ -5,10 +5,10 @@
  */
 
 // URL base del backend Django (desde variable de entorno)
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8023'
 
-// Versión de la API
-export const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1'
+// Versión de la API o prefijo del módulo
+export const API_VERSION = import.meta.env.VITE_API_VERSION || 'basketball'
 
 // URL completa de la API
 export const API_URL = `${API_BASE_URL}/api/${API_VERSION}`

@@ -39,6 +39,7 @@ apiClient.interceptors.response.use(
         case 401:
           // Token expirado o inválido
           localStorage.removeItem('token')
+          localStorage.removeItem('auth-storage')
           window.location.href = '/login'
           break
         case 403:

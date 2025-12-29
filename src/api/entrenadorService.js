@@ -21,7 +21,7 @@ const EntrenadorService = {
    * @param {number} id - ID del entrenador
    */
   getById: async (id) => {
-    const response = await apiClient.get(`${ENDPOINTS.ENTRENADORES}/${id}`)
+    const response = await apiClient.get(`${ENDPOINTS.ENTRENADORES}${id}/`)
     return response.data
   },
 
@@ -40,7 +40,7 @@ const EntrenadorService = {
    * @param {Object} data - Datos a actualizar
    */
   update: async (id, data) => {
-    const response = await apiClient.put(`${ENDPOINTS.ENTRENADORES}/${id}`, data)
+    const response = await apiClient.put(`${ENDPOINTS.ENTRENADORES}${id}/`, data)
     return response.data
   },
 
@@ -49,7 +49,7 @@ const EntrenadorService = {
    * @param {number} id - ID del entrenador
    */
   delete: async (id) => {
-    const response = await apiClient.delete(`${ENDPOINTS.ENTRENADORES}/${id}`)
+    const response = await apiClient.delete(`${ENDPOINTS.ENTRENADORES}${id}/`)
     return response.data
   },
 
@@ -58,7 +58,7 @@ const EntrenadorService = {
    * @param {number} id - ID del entrenador
    */
   getGrupos: async (id) => {
-    const response = await apiClient.get(`${ENDPOINTS.ENTRENADORES}/${id}/grupos`)
+    const response = await apiClient.get(`${ENDPOINTS.ENTRENADORES}${id}/grupos/`)
     return response.data
   },
 
@@ -68,7 +68,7 @@ const EntrenadorService = {
    * @param {number} grupoId - ID del grupo
    */
   asignarGrupo: async (entrenadorId, grupoId) => {
-    const response = await apiClient.post(`${ENDPOINTS.ENTRENADORES}/${entrenadorId}/asignar-grupo/${grupoId}`)
+    const response = await apiClient.post(`${ENDPOINTS.ENTRENADORES}${entrenadorId}/asignar-grupo/${grupoId}/`)
     return response.data
   },
 }

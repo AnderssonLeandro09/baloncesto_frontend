@@ -35,6 +35,9 @@ export const ENDPOINTS = {
   
   // Pruebas Físicas
   PRUEBAS_FISICAS: '/pruebas-fisicas',
+
+  // Perfil
+  PROFILE: '/profile',
 }
 
 // Configuración de timeout para peticiones (desde variable de entorno)

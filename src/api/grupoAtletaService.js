@@ -12,7 +12,7 @@ const GrupoAtletaService = {
    * @param {Object} params - Parámetros de filtro y paginación
    */
   getAll: async (params = {}) => {
-    const response = await apiClient.get(ENDPOINTS.GRUPOS_ATLETAS, { params })
+    const response = await apiClient.get(`${ENDPOINTS.GRUPOS_ATLETAS}`, { params })
     return response.data
   },
 
@@ -21,7 +21,7 @@ const GrupoAtletaService = {
    * @param {number} id - ID del grupo
    */
   getById: async (id) => {
-    const response = await apiClient.get(`${ENDPOINTS.GRUPOS_ATLETAS}/${id}`)
+    const response = await apiClient.get(`${ENDPOINTS.GRUPOS_ATLETAS}${id}`)
     return response.data
   },
 
@@ -30,7 +30,7 @@ const GrupoAtletaService = {
    * @param {Object} data - Datos del grupo
    */
   create: async (data) => {
-    const response = await apiClient.post(ENDPOINTS.GRUPOS_ATLETAS, data)
+    const response = await apiClient.post(`${ENDPOINTS.GRUPOS_ATLETAS}/`, data)
     return response.data
   },
 
@@ -40,7 +40,7 @@ const GrupoAtletaService = {
    * @param {Object} data - Datos a actualizar
    */
   update: async (id, data) => {
-    const response = await apiClient.put(`${ENDPOINTS.GRUPOS_ATLETAS}/${id}`, data)
+    const response = await apiClient.put(`${ENDPOINTS.GRUPOS_ATLETAS}/${id}/`, data)
     return response.data
   },
 
@@ -49,16 +49,25 @@ const GrupoAtletaService = {
    * @param {number} id - ID del grupo
    */
   delete: async (id) => {
-    const response = await apiClient.delete(`${ENDPOINTS.GRUPOS_ATLETAS}/${id}`)
+    const response = await apiClient.delete(`${ENDPOINTS.GRUPOS_ATLETAS}${id}/`)
     return response.data
   },
 
   /**
-   * Obtener atletas de un grupo
-   * @param {number} id - ID del grupo
+   * Obtener atletas elegibles para un grupo específico
+   * @param {number} grupoId - ID del grupo
    */
-  getAtletas: async (id) => {
-    const response = await apiClient.get(`${ENDPOINTS.GRUPOS_ATLETAS}/${id}/atletas`)
+  getAtletasElegibles: async (grupoId) => {
+    const response = await apiClient.get(`${ENDPOINTS.GRUPOS_ATLETAS}${grupoId}/atletas-elegibles/`)
+    return response.data
+  },
+
+  /**
+   * Obtener atletas elegibles por rango de edad
+   * @param {Object} params - Parámetros con min_edad y max_edad
+   */
+  getAtletasElegiblesPorEdad: async (params = {}) => {
+    const response = await apiClient.get(`${ENDPOINTS.GRUPOS_ATLETAS}atletas-elegibles/`, { params })
     return response.data
   },
 }

@@ -26,9 +26,11 @@ const useGrupoStore = create((set, get) => ({
     set({ loading: true, error: null })
     try {
       const response = await GrupoAtletaService.getAll(get().filtros)
+      // El backend devuelve un array directamente
+      const grupos = Array.isArray(response) ? response : []
       set({ 
-        grupos: response.data?.results || response.data || [],
-        totalItems: response.data?.count || 0,
+        grupos: grupos,
+        totalItems: grupos.length,
         loading: false 
       })
     } catch (error) {
@@ -40,11 +42,12 @@ const useGrupoStore = create((set, get) => ({
     set({ loading: true, error: null })
     try {
       const response = await GrupoAtletaService.create(data)
+      const nuevoGrupo = response || data
       set((state) => ({ 
-        grupos: [...state.grupos, response.data],
+        grupos: [...state.grupos, nuevoGrupo],
         loading: false 
       }))
-      return { success: true, data: response.data }
+      return { success: true, data: nuevoGrupo }
     } catch (error) {
       set({ error: error.message, loading: false })
       return { success: false, error: error.message }
@@ -55,12 +58,13 @@ const useGrupoStore = create((set, get) => ({
     set({ loading: true, error: null })
     try {
       const response = await GrupoAtletaService.update(id, data)
+      const grupoActualizado = response || data
       set((state) => ({
-        grupos: state.grupos.map(g => g.id === id ? response.data : g),
+        grupos: state.grupos.map(g => g.id === id ? grupoActualizado : g),
         grupoSeleccionado: null,
         loading: false
       }))
-      return { success: true, data: response.data }
+      return { success: true, data: grupoActualizado }
     } catch (error) {
       set({ error: error.message, loading: false })
       return { success: false, error: error.message }

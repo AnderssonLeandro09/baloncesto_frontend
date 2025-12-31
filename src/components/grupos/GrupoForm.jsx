@@ -12,7 +12,6 @@ const GrupoForm = ({ grupo, onSubmit, onCancel, loading }) => {
       rango_edad_minima: '',
       rango_edad_maxima: '',
       categoria: '',
-      entrenador: '',
       estado: true,
       atletas: []
     }
@@ -93,12 +92,67 @@ const GrupoForm = ({ grupo, onSubmit, onCancel, loading }) => {
   }
 
   const handleFormSubmit = (data) => {
-    const submitData = {
-      ...data,
-      rango_edad_minima: parseInt(data.rango_edad_minima),
-      rango_edad_maxima: parseInt(data.rango_edad_maxima),
-      atletas: atletasSeleccionados
+    // Validar y sanitizar datos antes de enviar al backend
+    
+    // Validar que los datos existan
+    if (!data || typeof data !== 'object') {
+      console.error('Datos de formulario inválidos')
+      return
     }
+    
+    // Validar y sanitizar nombre
+    const nombre = String(data.nombre || '').trim()
+    if (nombre.length < 3 || nombre.length > 100) {
+      console.error('Nombre inválido')
+      return
+    }
+    
+    // Validar y sanitizar categoría
+    const categoria = String(data.categoria || '').trim()
+    if (categoria.length < 1 || categoria.length > 50) {
+      console.error('Categoría inválida')
+      return
+    }
+    
+    // Validar edades
+    const minEdad = parseInt(data.rango_edad_minima)
+    const maxEdad = parseInt(data.rango_edad_maxima)
+    
+    if (isNaN(minEdad) || isNaN(maxEdad)) {
+      console.error('Edades inválidas')
+      return
+    }
+    
+    if (minEdad < 0 || minEdad > 150 || maxEdad < 0 || maxEdad > 150) {
+      console.error('Rango de edades fuera de límites')
+      return
+    }
+    
+    if (minEdad > maxEdad) {
+      console.error('Edad mínima no puede ser mayor que la máxima')
+      return
+    }
+    
+    // Validar y sanitizar IDs de atletas
+    const atletasValidos = atletasSeleccionados.filter(id => {
+      const numId = parseInt(id)
+      return !isNaN(numId) && numId > 0 && numId <= 999999999
+    })
+    
+    if (atletasValidos.length > 100) {
+      console.error('Demasiados atletas seleccionados')
+      return
+    }
+    
+    const submitData = {
+      nombre: nombre,
+      categoria: categoria,
+      rango_edad_minima: minEdad,
+      rango_edad_maxima: maxEdad,
+      estado: Boolean(data.estado),
+      atletas: atletasValidos
+    }
+    
     onSubmit(submitData)
   }
 
@@ -193,26 +247,7 @@ const GrupoForm = ({ grupo, onSubmit, onCancel, loading }) => {
             )}
           </div>
 
-          {/* ID del Entrenador */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
-              Entrenador
-            </h3>
-            <Input
-              label="ID del Entrenador"
-              type="number"
-              {...register('entrenador', { 
-                required: 'El entrenador es obligatorio',
-                min: { value: 1, message: 'Debe ser un ID válido' },
-                max: { value: 999999999, message: 'ID inválido' },
-                valueAsNumber: true
-              })}
-              error={errors.entrenador?.message}
-              placeholder="ID del entrenador"
-              min="1"
-              max="999999999"
-            />
-          </div>
+          {/* ID del Entrenador - ELIMINADO: Se asigna automáticamente desde el backend */}
 
           {/* Selección de Atletas */}
           <div className="space-y-4">

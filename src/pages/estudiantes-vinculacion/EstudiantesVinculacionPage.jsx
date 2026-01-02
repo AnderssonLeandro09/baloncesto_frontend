@@ -5,14 +5,11 @@
 
 import { Routes, Route } from 'react-router-dom'
 import EstudiantesVinculacionList from './EstudiantesVinculacionList'
-import EstudianteVinculacionForm from './EstudianteVinculacionForm'
 
 const EstudiantesVinculacionPage = () => {
   return (
     <Routes>
       <Route index element={<EstudiantesVinculacionList />} />
-      <Route path="nuevo" element={<EstudianteVinculacionForm />} />
-      <Route path=":id/editar" element={<EstudianteVinculacionForm />} />
     </Routes>
   )
 }

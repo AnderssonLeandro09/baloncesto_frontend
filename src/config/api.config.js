@@ -19,10 +19,10 @@ export const ENDPOINTS = {
   ATLETAS: '/atletas',
   
   // Entrenadores
-  ENTRENADORES: '/entrenadores',
+  ENTRENADORES: '/entrenadores/',
   
   // Estudiantes de Vinculación
-  ESTUDIANTES_VINCULACION: '/estudiantes-vinculacion',
+  ESTUDIANTES_VINCULACION: '/estudiantes-vinculacion/',
   
   // Grupos de Atletas
   GRUPOS_ATLETAS: '/grupos-atletas',

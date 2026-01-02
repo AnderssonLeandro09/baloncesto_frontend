@@ -1,12 +1,13 @@
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi'
-import { Card, Button, Table, ConfirmDialog } from '../../components/common'
+import { useEffect, useState } from 'react'
+import { FiPlus, FiEdit2, FiTrash2, FiEye } from 'react-icons/fi'
+import toast from 'react-hot-toast'
+import { Card, Button, ConfirmDialog } from '../../components/common'
+import { UsuariosTable, UsuarioDetalleModal } from '../../components/usuarios'
 import { useEntrenadorStore } from '../../stores'
 import { useModal } from '../../hooks'
+import EntrenadorForm from './EntrenadorForm'
 
 const EntrenadoresList = () => {
-  const navigate = useNavigate()
   const { 
     entrenadores, 
     loading, 
@@ -16,14 +17,27 @@ const EntrenadoresList = () => {
   } = useEntrenadorStore()
   
   const deleteModal = useModal()
+  const detalleModal = useModal()
+  const formModal = useModal()
+  const [entrenadorDetalle, setEntrenadorDetalle] = useState(null)
 
   useEffect(() => {
     fetchEntrenadores()
   }, [fetchEntrenadores])
 
+  const handleNew = () => {
+    setEntrenadorSeleccionado(null)
+    formModal.open()
+  }
+
   const handleEdit = (entrenador) => {
     setEntrenadorSeleccionado(entrenador)
-    navigate(`${entrenador.entrenador.id}/editar`)
+    formModal.open()
+  }
+
+  const handleViewDetails = (entrenador) => {
+    setEntrenadorDetalle(entrenador)
+    detalleModal.open()
   }
 
   const handleDeleteClick = (entrenador) => {
@@ -36,7 +50,10 @@ const EntrenadoresList = () => {
     if (entrenadorSeleccionado) {
       const result = await deleteEntrenador(entrenadorSeleccionado.entrenador.id)
       if (result.success) {
+        toast.success('Entrenador dado de baja exitosamente')
         deleteModal.close()
+      } else {
+        toast.error(result.error || 'Error al dar de baja al entrenador')
       }
     }
   }
@@ -74,6 +91,13 @@ const EntrenadoresList = () => {
       render: (_, row) => (
         <div className="flex space-x-2">
           <button 
+            onClick={() => handleViewDetails(row)}
+            className="p-1 text-green-600 hover:bg-green-50 rounded"
+            title="Ver detalles"
+          >
+            <FiEye className="w-4 h-4" />
+          </button>
+          <button 
             onClick={() => handleEdit(row)}
             className="p-1 text-blue-600 hover:bg-blue-50 rounded"
             title="Editar"
@@ -92,6 +116,14 @@ const EntrenadoresList = () => {
     },
   ]
 
+  // Campos para búsqueda (solo nombre e identificación)
+  const searchFields = [
+    'persona.identification',
+    'persona.first_name',
+    'persona.firts_name',
+    'persona.last_name'
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -99,20 +131,34 @@ const EntrenadoresList = () => {
           <h1 className="text-2xl font-bold text-gray-900">Entrenadores</h1>
           <p className="text-gray-500">Gestión de entrenadores del sistema</p>
         </div>
-        <Button onClick={() => navigate('nuevo')}>
+        <Button onClick={handleNew}>
           <FiPlus className="w-4 h-4 mr-2" />
           Nuevo Entrenador
         </Button>
       </div>
 
-      <Card padding={false}>
-        <Table
+      <Card>
+        <UsuariosTable
           columns={columns}
           data={entrenadores}
           loading={loading}
           emptyMessage="No hay entrenadores registrados"
+          searchPlaceholder="Buscar por nombre o identificación..."
+          searchFields={searchFields}
         />
       </Card>
+
+      <EntrenadorForm 
+        isOpen={formModal.isOpen} 
+        onClose={formModal.close} 
+      />
+
+      <UsuarioDetalleModal
+        isOpen={detalleModal.isOpen}
+        onClose={detalleModal.close}
+        usuario={entrenadorDetalle}
+        tipo="entrenador"
+      />
 
       <ConfirmDialog
         isOpen={deleteModal.isOpen}

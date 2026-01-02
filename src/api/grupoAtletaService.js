@@ -63,7 +63,7 @@ const GrupoAtletaService = {
    * @throws {403} Si el entrenador no es el dueño del grupo
    */
   delete: async (id) => {
-    const response = await apiClient.delete(`${ENDPOINTS.GRUPOS_ATLETAS}${id}/`)
+    const response = await apiClient.delete(`${ENDPOINTS.GRUPOS_ATLETAS}/${id}/`)
     return response.data
   },
 

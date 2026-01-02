@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { 
-  FiPlus, FiSearch, FiFilter, FiRefreshCw, FiAlertCircle,
+  FiPlus, FiSearch, FiRefreshCw, FiAlertCircle,
   FiUsers, FiTrendingUp, FiActivity
 } from 'react-icons/fi'
 import { Card, Button, Modal, Loading, ConfirmDialog } from '../../components/common'
@@ -27,7 +27,6 @@ const GruposPage = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [grupoToDelete, setGrupoToDelete] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterEstado, setFilterEstado] = useState('all')
 
   useEffect(() => {
     fetchGrupos()
@@ -102,10 +101,7 @@ const GruposPage = () => {
     const sanitizedSearch = String(searchTerm || '').toLowerCase().substring(0, 100)
     const matchesSearch = String(grupo.nombre || '').toLowerCase().includes(sanitizedSearch) ||
                          String(grupo.categoria || '').toLowerCase().includes(sanitizedSearch)
-    const matchesEstado = filterEstado === 'all' || 
-                         (filterEstado === 'active' && grupo.estado) ||
-                         (filterEstado === 'inactive' && !grupo.estado)
-    return matchesSearch && matchesEstado
+    return matchesSearch
   })
 
   // Estadísticas
@@ -184,30 +180,16 @@ const GruposPage = () => {
 
       {/* Filtros */}
       <Card>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre o categoría..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              maxLength={100}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <FiFilter className="text-gray-400 w-5 h-5" />
-            <select
-              value={filterEstado}
-              onChange={(e) => setFilterEstado(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">Todos los estados</option>
-              <option value="active">Activos</option>
-              <option value="inactive">Inactivos</option>
-            </select>
-          </div>
+        <div className="relative">
+          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre o categoría..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            maxLength={100}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
         </div>
       </Card>
 
@@ -221,14 +203,14 @@ const GruposPage = () => {
           <div className="text-center py-12">
             <FiAlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {searchTerm || filterEstado !== 'all' ? 'No se encontraron resultados' : 'No hay grupos registrados'}
+              {searchTerm ? 'No se encontraron resultados' : 'No hay grupos registrados'}
             </h3>
             <p className="text-gray-500 mb-6">
-              {searchTerm || filterEstado !== 'all' 
-                ? 'Intenta ajustar los filtros de búsqueda' 
+              {searchTerm 
+                ? 'Intenta ajustar el término de búsqueda' 
                 : 'Comienza creando tu primer grupo de atletas'}
             </p>
-            {!searchTerm && filterEstado === 'all' && (
+            {!searchTerm && (
               <Button onClick={handleCreate}>
                 <FiPlus className="w-4 h-4 mr-2" />
                 Crear Primer Grupo
@@ -251,7 +233,13 @@ const GruposPage = () => {
       )}
 
       {/* Modal de Formulario */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)}>
+      <Modal 
+        isOpen={showModal} 
+        onClose={() => setShowModal(false)}
+        className="bg-blue-500"
+        title={grupoSeleccionado ? 'Editar Grupo' : 'Nuevo Grupo de Atletas'}
+        size="xl"
+      >
         <GrupoForm
           grupo={grupoSeleccionado}
           onSubmit={handleSubmit}

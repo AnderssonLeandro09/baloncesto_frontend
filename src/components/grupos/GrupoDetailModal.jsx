@@ -1,4 +1,4 @@
-import { FiX, FiUser, FiMail, FiCreditCard, FiCheckCircle, FiXCircle } from 'react-icons/fi'
+import { FiX, FiCreditCard, FiCheckCircle } from 'react-icons/fi'
 
 const GrupoDetailModal = ({ grupo, onClose }) => {
   if (!grupo) return null
@@ -34,22 +34,6 @@ const GrupoDetailModal = ({ grupo, onClose }) => {
               <p className="text-2xl font-bold text-gray-900">
                 {grupo.rango_edad_minima} - {grupo.rango_edad_maxima} años
               </p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Estado</h3>
-              <div className="flex items-center">
-                {grupo.estado ? (
-                  <>
-                    <FiCheckCircle className="w-6 h-6 text-green-600 mr-2" />
-                    <span className="text-xl font-semibold text-green-600">Activo</span>
-                  </>
-                ) : (
-                  <>
-                    <FiXCircle className="w-6 h-6 text-gray-600 mr-2" />
-                    <span className="text-xl font-semibold text-gray-600">Inactivo</span>
-                  </>
-                )}
-              </div>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Entrenador</h3>

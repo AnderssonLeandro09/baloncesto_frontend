@@ -8,6 +8,7 @@
  * @returns {boolean}
  */
 export const isValidEmail = (email) => {
+  if (!email || typeof email !== 'string') return false
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return regex.test(email)
 }
@@ -44,8 +45,28 @@ export const isValidCedula = (cedula) => {
  * @returns {boolean}
  */
 export const isValidPhone = (phone) => {
+  if (!phone || typeof phone !== 'string') return false
+  const cleaned = phone.replace(/[\s-]/g, '')
+  // Formato ecuatoriano: celular (09XXXXXXXX) o fijo (0X-XXXXXXX)
   const regex = /^(09\d{8}|0[2-7]\d{7})$/
-  return regex.test(phone?.replace(/\s|-/g, ''))
+  return regex.test(cleaned)
+}
+
+/**
+ * Valida si una contraseña cumple requisitos mínimos
+ * @param {string} password - Contraseña a validar
+ * @returns {{isValid: boolean, errors: string[]}}
+ */
+export const isValidPassword = (password) => {
+  const errors = []
+  
+  if (!password) {
+    return { isValid: false, errors: ['La contraseña es requerida'] }
+  }
+  
+  if (password.length < 8) errors.push('Mínimo 8 caracteres')
+  
+  return { isValid: errors.length === 0, errors }
 }
 
 /**

@@ -25,10 +25,11 @@ const usePruebaFisicaStore = create((set, get) => ({
   fetchPruebas: async () => {
     set({ loading: true, error: null })
     try {
-      const response = await PruebaFisicaService.getAll(get().filtros)
+      const data = await PruebaFisicaService.getAll(get().filtros)
+      // El servicio ya retorna response.data
       set({ 
-        pruebas: response.data?.results || response.data || [],
-        totalItems: response.data?.count || 0,
+        pruebas: data?.results || data || [],
+        totalItems: data?.count || (Array.isArray(data) ? data.length : 0),
         loading: false 
       })
     } catch (error) {
@@ -39,13 +40,16 @@ const usePruebaFisicaStore = create((set, get) => ({
   createPrueba: async (data) => {
     set({ loading: true, error: null })
     try {
+      console.log('Store: enviando datos al servicio:', data)
       const response = await PruebaFisicaService.create(data)
+      console.log('Store: respuesta del servicio:', response)
       set((state) => ({ 
-        pruebas: [...state.pruebas, response.data],
+        pruebas: [...state.pruebas, response],
         loading: false 
       }))
-      return { success: true, data: response.data }
+      return { success: true, data: response }
     } catch (error) {
+      console.error('Store: error al crear prueba:', error)
       set({ error: error.message, loading: false })
       return { success: false, error: error.message }
     }
@@ -54,14 +58,17 @@ const usePruebaFisicaStore = create((set, get) => ({
   updatePrueba: async (id, data) => {
     set({ loading: true, error: null })
     try {
+      console.log('Store update: enviando al servicio:', { id, data })
       const response = await PruebaFisicaService.update(id, data)
+      console.log('Store update: respuesta del servicio:', response)
       set((state) => ({
-        pruebas: state.pruebas.map(p => p.id === id ? response.data : p),
+        pruebas: state.pruebas.map(p => p.id === id ? response : p),
         pruebaSeleccionada: null,
         loading: false
       }))
-      return { success: true, data: response.data }
+      return { success: true, data: response }
     } catch (error) {
+      console.error('Store update: error:', error)
       set({ error: error.message, loading: false })
       return { success: false, error: error.message }
     }
@@ -77,6 +84,22 @@ const usePruebaFisicaStore = create((set, get) => ({
       }))
       return { success: true }
     } catch (error) {
+      set({ error: error.message, loading: false })
+      return { success: false, error: error.message }
+    }
+  },
+
+  toggleEstado: async (id) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await PruebaFisicaService.toggleEstado(id)
+      set((state) => ({
+        pruebas: state.pruebas.map(p => p.id === id ? response : p),
+        loading: false
+      }))
+      return { success: true, data: response }
+    } catch (error) {
+      console.error('Store: error al cambiar estado:', error)
       set({ error: error.message, loading: false })
       return { success: false, error: error.message }
     }

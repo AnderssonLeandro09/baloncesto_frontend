@@ -26,11 +26,19 @@ const PruebaFisicaService = {
   },
 
   /**
+   * Obtener atletas con inscripción habilitada
+   */
+  getAtletasHabilitados: async () => {
+    const response = await apiClient.get(`${ENDPOINTS.PRUEBAS_FISICAS}/atletas-habilitados/`)
+    return response.data
+  },
+
+  /**
    * Crear una nueva prueba física
    * @param {Object} data - Datos de la prueba
    */
   create: async (data) => {
-    const response = await apiClient.post(ENDPOINTS.PRUEBAS_FISICAS, data)
+    const response = await apiClient.post(`${ENDPOINTS.PRUEBAS_FISICAS}/`, data)
     return response.data
   },
 
@@ -40,7 +48,7 @@ const PruebaFisicaService = {
    * @param {Object} data - Datos a actualizar
    */
   update: async (id, data) => {
-    const response = await apiClient.put(`${ENDPOINTS.PRUEBAS_FISICAS}/${id}`, data)
+    const response = await apiClient.put(`${ENDPOINTS.PRUEBAS_FISICAS}/${id}/`, data)
     return response.data
   },
 
@@ -50,6 +58,15 @@ const PruebaFisicaService = {
    */
   delete: async (id) => {
     const response = await apiClient.delete(`${ENDPOINTS.PRUEBAS_FISICAS}/${id}`)
+    return response.data
+  },
+
+  /**
+   * Cambiar el estado de una prueba (activar/desactivar)
+   * @param {number} id - ID de la prueba
+   */
+  toggleEstado: async (id) => {
+    const response = await apiClient.patch(`${ENDPOINTS.PRUEBAS_FISICAS}/${id}/toggle-estado/`)
     return response.data
   },
 

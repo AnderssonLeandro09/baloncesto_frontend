@@ -32,6 +32,9 @@ export default {
           900: '#0f172a',
         }
       },
+      animation: {
+        'bounce-slow': 'bounce 3s infinite',
+      },
     },
   },
   plugins: [],

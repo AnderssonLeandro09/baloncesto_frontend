@@ -26,6 +26,7 @@ const PruebasFisicasPage = () => {
   const [selectedPrueba, setSelectedPrueba] = useState(null)
   const [pruebaToDelete, setPruebaToDelete] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [semestreFilter, setSemestreFilter] = useState('todos')
   
   const formModal = useModal()
   const deleteModal = useModal()
@@ -111,15 +112,26 @@ const PruebasFisicasPage = () => {
     }
   }
 
+  // Obtener lista única de semestres para el filtro (ANTES del filtrado)
+  const semestresDisponibles = [...new Set(pruebas.map(p => p.semestre).filter(Boolean))].sort().reverse()
+
   const filteredPruebas = pruebas.filter(p => {
+    // Filtro de búsqueda
     const search = searchTerm.toLowerCase()
     const nombreCompleto = `${p.persona?.nombre || ''} ${p.persona?.apellido || ''}`.toLowerCase()
     const identificacion = (p.persona?.identificacion || '').toLowerCase()
     const tipo = (p.tipo_prueba || '').toLowerCase()
+    const semestre = (p.semestre || '').toLowerCase()
     
-    return nombreCompleto.includes(search) || 
+    const matchesSearch = nombreCompleto.includes(search) || 
            identificacion.includes(search) || 
-           tipo.includes(search)
+           tipo.includes(search) ||
+           semestre.includes(search)
+    
+    // Filtro de semestre
+    const matchesSemestre = semestreFilter === 'todos' || p.semestre === semestreFilter
+    
+    return matchesSearch && matchesSemestre
   })
 
   return (
@@ -130,6 +142,16 @@ const PruebasFisicasPage = () => {
           <p className="text-gray-500">Gestión de pruebas de rendimiento físico</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
+          <select
+            value={semestreFilter}
+            onChange={(e) => setSemestreFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            <option value="todos">Todos los semestres</option>
+            {semestresDisponibles.map(sem => (
+              <option key={sem} value={sem}>{sem}</option>
+            ))}
+          </select>
           <div className="relative">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input

@@ -16,6 +16,32 @@ const UNIDADES_POR_TIPO = {
   'AGILIDAD': 'Segundos (seg)'  // Zigzag
 }
 
+// Función para sanitizar texto y prevenir XSS
+const sanitizeText = (text) => {
+  if (!text) return ''
+  return String(text)
+    .replace(/[<>"'&]/g, (char) => {
+      const entities = {
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+        '&': '&amp;'
+      }
+      return entities[char]
+    })
+    .trim()
+    .substring(0, 1000) // Limitar longitud
+}
+
+// Función para calcular el semestre automáticamente desde una fecha
+const calcularSemestre = (fecha = new Date()) => {
+  const year = fecha.getFullYear()
+  const month = fecha.getMonth() + 1 // getMonth() es 0-indexed
+  const periodo = month <= 6 ? 1 : 2
+  return `${year}-${periodo}`
+}
+
 const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
   const [atletas, setAtletas] = useState([])
   const [loadingAtletas, setLoadingAtletas] = useState(false)
@@ -54,34 +80,37 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
   )
 
   const handleFormSubmit = (vals) => {
-    console.log('handleFormSubmit ejecutado con:', vals)
-    
     // Obtener fecha local en formato YYYY-MM-DD
     const today = new Date()
     const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     
+    // Validaciones de seguridad estrictas
+    const atletaId = parseInt(vals.atleta)
+    const resultado = parseFloat(vals.resultado)
+    
+    if (isNaN(atletaId) || atletaId <= 0 || atletaId > 2147483647) {
+      console.error('ID de atleta inválido')
+      return
+    }
+    if (isNaN(resultado) || resultado <= 0 || resultado > 999999) {
+      console.error('Resultado inválido')
+      return
+    }
+    if (!['FUERZA', 'VELOCIDAD', 'AGILIDAD'].includes(vals.tipo_prueba)) {
+      console.error('Tipo de prueba inválido')
+      return
+    }
+    
     // Transformar los datos al formato que espera el backend
-    // La unidad_medida se asigna automáticamente en el backend según el tipo_prueba
     const payload = {
-      atleta_id: parseInt(vals.atleta),
+      atleta_id: atletaId,
       tipo_prueba: vals.tipo_prueba,
-      resultado: parseFloat(vals.resultado),
-      observaciones: (vals.observaciones || '').trim().substring(0, 1000), // Limitar y limpiar
+      resultado: resultado,
+      observaciones: sanitizeText(vals.observaciones || ''),
       estado: Boolean(vals.estado),
       fecha_registro: localDate
     }
     
-    // Validación adicional de seguridad
-    if (isNaN(payload.atleta_id) || payload.atleta_id <= 0) {
-      console.error('ID de atleta inválido')
-      return
-    }
-    if (isNaN(payload.resultado) || payload.resultado <= 0) {
-      console.error('Resultado inválido')
-      return
-    }
-    
-    console.log('Payload transformado:', payload)
     onSubmit(payload)
   }
 
@@ -108,6 +137,17 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+      {/* Mostrar semestre - calculado o del registro existente */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+        <span className="text-blue-700 font-medium">📅 Semestre:</span>
+        <span className="text-blue-900 font-semibold">
+          {initialData?.semestre || calcularSemestre()}
+        </span>
+        {!initialData && (
+          <span className="text-xs text-blue-600 ml-2">(calculado automáticamente)</span>
+        )}
+      </div>
+      
       <Select
         label="Atleta"
         name="atleta"

@@ -2,6 +2,16 @@ import React from 'react'
 import { FiEdit2, FiTrash2 } from 'react-icons/fi'
 import { Table } from '../common'
 
+// Función para sanitizar texto y prevenir XSS en renderizado
+const sanitizeForDisplay = (text) => {
+  if (!text) return 'N/A'
+  return String(text)
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 const PruebasFisicasList = ({ pruebas, loading, onEdit, onToggleEstado }) => {
   const columns = [
     {
@@ -23,6 +33,11 @@ const PruebasFisicasList = ({ pruebas, loading, onEdit, onToggleEstado }) => {
     {
       key: 'fecha_registro',
       title: 'Fecha',
+    },
+    {
+      key: 'semestre',
+      title: 'Semestre',
+      render: (_, row) => row.semestre || 'N/A'
     },
     {
       key: 'tipo_prueba',

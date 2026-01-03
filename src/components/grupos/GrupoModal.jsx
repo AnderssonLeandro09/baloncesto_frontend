@@ -56,21 +56,23 @@ const Modal = ({
           className={`relative bg-white rounded-xl shadow-xl w-full ${sizes[size]} transform transition-all`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-t-xl">
-            <h3 className="text-lg font-semibold text-white">{title}</h3>
-            {showCloseButton && (
-              <button
-                onClick={onClose}
-                className="text-white hover:bg-white/20 p-1 rounded transition-colors"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            )}
-          </div>
+          {/* Header - Only if title provided */}
+          {title && (
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+              {showCloseButton && (
+                <button
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <FiX className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          )}
           
           {/* Body */}
-          <div className="px-6 py-4">
+          <div className={title ? "px-6 py-4" : ""}>
             {children}
           </div>
         </div>

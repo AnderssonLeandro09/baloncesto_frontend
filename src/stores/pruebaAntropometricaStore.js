@@ -82,6 +82,48 @@ const usePruebaAntropometricaStore = create((set, get) => ({
     }
   },
 
+  toggleEstadoPrueba: async (id) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await PruebaAntropometricaService.toggleEstado(id)
+      set((state) => ({
+        pruebas: state.pruebas.map(p => p.id === id ? response.data : p),
+        loading: false
+      }))
+      return { success: true, data: response.data }
+    } catch (error) {
+      set({ error: error.message, loading: false })
+      return { success: false, error: error.message }
+    }
+  },
+
+  getPruebasByAtleta: async (atletaId) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await PruebaAntropometricaService.getByAtleta(atletaId)
+      set({ 
+        pruebas: response.data?.results || response.data || [],
+        loading: false 
+      })
+      return { success: true, data: response.data }
+    } catch (error) {
+      set({ error: error.message, loading: false })
+      return { success: false, error: error.message }
+    }
+  },
+
+  shareReport: async (id, data) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await PruebaAntropometricaService.shareReport(id, data)
+      set({ loading: false })
+      return { success: true, data: response.data }
+    } catch (error) {
+      set({ error: error.message, loading: false })
+      return { success: false, error: error.message }
+    }
+  },
+
   reset: () => set({
     pruebas: [],
     pruebaSeleccionada: null,

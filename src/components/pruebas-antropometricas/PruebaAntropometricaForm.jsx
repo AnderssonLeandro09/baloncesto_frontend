@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { Input, Select, Button } from '../common';
+import { Input, Button } from '../common';
 import apiClient from '../../api/apiClient';
 
 const positiveNumber = (label) =>
@@ -56,20 +56,19 @@ const PruebaAntropometricaForm = ({
     handleSubmit,
     formState: { errors, touchedFields, isValid },
     watch,
-    setValue,
   } = useForm({
     resolver: yupResolver(schema),
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
-      atleta: initialData?.atleta ?? '',
+      atleta: initialData?.atleta || '',
       fecha_registro:
         initialData?.fecha_registro || new Date().toISOString().split('T')[0],
-      peso: initialData?.peso ?? '',
-      estatura: initialData?.estatura ?? '',
-      altura_sentado: initialData?.altura_sentado ?? '',
-      envergadura: initialData?.envergadura ?? '',
-      observaciones: initialData?.observaciones ?? '',
+      peso: initialData?.peso || '',
+      estatura: initialData?.estatura || '',
+      altura_sentado: initialData?.altura_sentado || '',
+      envergadura: initialData?.envergadura || '',
+      observaciones: initialData?.observaciones || '',
     },
   });
 
@@ -154,21 +153,29 @@ const PruebaAntropometricaForm = ({
   return (
     <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Select
-          label="Atleta"
-          name="atleta"
-          value={watch('atleta')}
-          onChange={(e) =>
-            setValue('atleta', Number(e.target.value), {
-              shouldValidate: true,
-              shouldTouch: true,
-            })
-          }
-          options={atletas}
-          error={errors.atleta?.message}
-          touched={touchedFields.atleta}
-          required
-        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Atleta <span className="text-red-500">*</span>
+          </label>
+          <select
+            {...register('atleta', { 
+              setValueAs: (v) => v === '' ? '' : Number(v) 
+            })}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+              errors.atleta ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Seleccione un atleta</option>
+            {atletas.map((atleta) => (
+              <option key={atleta.value} value={atleta.value}>
+                {atleta.label}
+              </option>
+            ))}
+          </select>
+          {errors.atleta && (
+            <p className="mt-1 text-sm text-red-500">{errors.atleta.message}</p>
+          )}
+        </div>
 
         <Input
           label="Fecha de Registro"
@@ -186,7 +193,9 @@ const PruebaAntropometricaForm = ({
           type="number"
           step="0.01"
           min="0.01"
-          {...register('peso', { valueAsNumber: true })}
+          {...register('peso', { 
+            setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
+          })}
           error={errors.peso?.message}
           touched={touchedFields.peso}
           required
@@ -197,7 +206,9 @@ const PruebaAntropometricaForm = ({
           type="number"
           step="0.01"
           min="0.01"
-          {...register('estatura', { valueAsNumber: true })}
+          {...register('estatura', { 
+            setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
+          })}
           error={errors.estatura?.message}
           touched={touchedFields.estatura}
           required
@@ -210,7 +221,9 @@ const PruebaAntropometricaForm = ({
           type="number"
           step="0.01"
           min="0.01"
-          {...register('altura_sentado', { valueAsNumber: true })}
+          {...register('altura_sentado', { 
+            setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
+          })}
           error={errors.altura_sentado?.message}
           touched={touchedFields.altura_sentado}
           required
@@ -221,7 +234,9 @@ const PruebaAntropometricaForm = ({
           type="number"
           step="0.01"
           min="0.01"
-          {...register('envergadura', { valueAsNumber: true })}
+          {...register('envergadura', { 
+            setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
+          })}
           error={errors.envergadura?.message}
           touched={touchedFields.envergadura}
           required

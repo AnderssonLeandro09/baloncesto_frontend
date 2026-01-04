@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { FiPlus, FiSearch } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { usePruebaFisicaStore, useAuthStore } from '../../stores'
@@ -27,6 +27,7 @@ const PruebasFisicasPage = () => {
   const [pruebaToDelete, setPruebaToDelete] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [semestreFilter, setSemestreFilter] = useState('todos')
+  const hasLoadedRef = useRef(false)
   
   const formModal = useModal()
   const deleteModal = useModal()
@@ -35,30 +36,62 @@ const PruebasFisicasPage = () => {
     const loadPruebas = async () => {
       try {
         await fetchPruebas()
+        if (!hasLoadedRef.current) {
+          toast.success('Datos cargados correctamente', {
+            duration: 2000,
+            position: 'top-right',
+          })
+          hasLoadedRef.current = true
+        }
       } catch (error) {
-        toast.error('Error al cargar las pruebas físicas')
+        toast.error('Error al cargar las pruebas físicas', {
+          duration: 4000,
+          position: 'top-right',
+        })
       }
     }
     loadPruebas()
   }, [fetchPruebas])
 
   const handleCreate = () => {
+    if (!canCreate) {
+      toast.error('No tiene permisos para crear pruebas físicas', {
+        duration: 4000,
+        position: 'top-right',
+      })
+      return
+    }
     setSelectedPrueba(null)
     formModal.open()
   }
 
   const handleEdit = (prueba) => {
+    if (!canCreate) {
+      toast.error('No tiene permisos para editar pruebas físicas', {
+        duration: 4000,
+        position: 'top-right',
+      })
+      return
+    }
     setSelectedPrueba(prueba)
     formModal.open()
   }
 
   const handleToggleClick = (prueba) => {
+    if (!canCreate) {
+      toast.error('No tiene permisos para modificar el estado de pruebas físicas', {
+        duration: 4000,
+        position: 'top-right',
+      })
+      return
+    }
     setPruebaToDelete(prueba)
     deleteModal.open()
   }
 
   const handleFormSubmit = async (values) => {
     console.log('handleFormSubmit ejecutado con:', values)
+    
     try {
       if (selectedPrueba) {
         // Al actualizar, solo enviar campos modificables
@@ -70,45 +103,88 @@ const PruebasFisicasPage = () => {
           estado: values.estado
         }
         console.log('Actualizando con payload:', updatePayload)
+        
         const result = await updatePrueba(selectedPrueba.id, updatePayload)
         console.log('Resultado de updatePrueba:', result)
+        
         if (result.success) {
-          toast.success(' Prueba física actualizada exitosamente')
+          toast.success('Prueba física actualizada exitosamente', {
+            duration: 3000,
+            position: 'top-right',
+          })
           await fetchPruebas() // Refrescar la lista
           formModal.close()
         } else {
-          toast.error(result.error || 'Error al actualizar la prueba')
+          toast.error(`${result.error || 'Error al actualizar la prueba'}`, {
+            duration: 4000,
+            position: 'top-right',
+          })
         }
       } else {
         const result = await createPrueba(values)
         console.log('Resultado de createPrueba:', result)
+        
         if (result.success) {
-          toast.success(' Prueba física creada exitosamente')
+          toast.success('Prueba física creada exitosamente', {
+            duration: 3000,
+            position: 'top-right',
+          })
           await fetchPruebas() // Refrescar la lista
           formModal.close()
         } else {
-          toast.error(result.error || 'Error al crear la prueba')
+          toast.error(`${result.error || 'Error al crear la prueba'}`, {
+            duration: 4000,
+            position: 'top-right',
+          })
         }
       }
     } catch (error) {
       console.error('Error al guardar prueba:', error)
-      toast.error('❌ Error al guardar la prueba física')
+      toast.error('Error inesperado al guardar la prueba física', {
+        duration: 4000,
+        position: 'top-right',
+      })
     }
   }
 
   const confirmToggle = async () => {
+    if (!pruebaToDelete) {
+      toast.error('No se ha seleccionado ninguna prueba', {
+        duration: 3000,
+        position: 'top-right',
+      })
+      return
+    }
+    
     try {
       const result = await toggleEstado(pruebaToDelete.id)
+      
       if (result.success) {
-        toast.success(pruebaToDelete.estado ? '❌ Prueba física desactivada' : ' Prueba física activada')
+        if (pruebaToDelete.estado) {
+          toast.success('Prueba física desactivada correctamente', {
+            duration: 3000,
+            position: 'top-right',
+          })
+        } else {
+          toast.success('Prueba física activada correctamente', {
+            duration: 3000,
+            position: 'top-right',
+          })
+        }
         await fetchPruebas() // Refrescar la lista después del toggle
         deleteModal.close()
       } else {
-        toast.error(result.error || 'Error al cambiar el estado')
+        toast.error(`${result.error || 'Error al cambiar el estado'}`, {
+          duration: 4000,
+          position: 'top-right',
+        })
       }
     } catch (error) {
       console.error('Error al cambiar estado:', error)
-      toast.error('❌ Error al cambiar el estado de la prueba')
+      toast.error('Error inesperado al cambiar el estado de la prueba', {
+        duration: 4000,
+        position: 'top-right',
+      })
     }
   }
 
@@ -133,6 +209,16 @@ const PruebasFisicasPage = () => {
     
     return matchesSearch && matchesSemestre
   })
+
+  // Mostrar mensaje informativo si no hay resultados
+  useEffect(() => {
+    if (searchTerm && filteredPruebas.length === 0 && pruebas.length > 0) {
+      toast.info('No se encontraron resultados para la búsqueda', {
+        duration: 2000,
+        position: 'top-right',
+      })
+    }
+  }, [filteredPruebas.length, searchTerm, pruebas.length])
 
   return (
     <div className="space-y-6">

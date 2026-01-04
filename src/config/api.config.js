@@ -19,10 +19,10 @@ export const ENDPOINTS = {
   ATLETAS: '/atletas',
   
   // Entrenadores
-  ENTRENADORES: '/entrenadores',
+  ENTRENADORES: '/entrenadores/',
   
   // Estudiantes de Vinculación
-  ESTUDIANTES_VINCULACION: '/estudiantes-vinculacion',
+  ESTUDIANTES_VINCULACION: '/estudiantes-vinculacion/',
   
   // Grupos de Atletas
   GRUPOS_ATLETAS: '/grupos-atletas',
@@ -35,6 +35,9 @@ export const ENDPOINTS = {
   
   // Pruebas Físicas
   PRUEBAS_FISICAS: '/pruebas-fisicas',
+
+  // Perfil
+  PROFILE: '/profile',
 }
 
 // Configuración de timeout para peticiones (desde variable de entorno)

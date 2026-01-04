@@ -21,7 +21,7 @@ const EstudianteVinculacionService = {
    * @param {number} id - ID del estudiante
    */
   getById: async (id) => {
-    const response = await apiClient.get(`${ENDPOINTS.ESTUDIANTES_VINCULACION}/${id}`)
+    const response = await apiClient.get(`${ENDPOINTS.ESTUDIANTES_VINCULACION}${id}/`)
     return response.data
   },
 
@@ -40,7 +40,7 @@ const EstudianteVinculacionService = {
    * @param {Object} data - Datos a actualizar
    */
   update: async (id, data) => {
-    const response = await apiClient.put(`${ENDPOINTS.ESTUDIANTES_VINCULACION}/${id}`, data)
+    const response = await apiClient.put(`${ENDPOINTS.ESTUDIANTES_VINCULACION}${id}/`, data)
     return response.data
   },
 
@@ -49,7 +49,7 @@ const EstudianteVinculacionService = {
    * @param {number} id - ID del estudiante
    */
   delete: async (id) => {
-    const response = await apiClient.delete(`${ENDPOINTS.ESTUDIANTES_VINCULACION}/${id}`)
+    const response = await apiClient.delete(`${ENDPOINTS.ESTUDIANTES_VINCULACION}${id}/`)
     return response.data
   },
 

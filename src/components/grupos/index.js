@@ -1,0 +1,6 @@
+export { default as GrupoCard } from './GrupoCard'
+export { default as GrupoForm } from './GrupoForm'
+export { default as GrupoDetailModal } from './GrupoDetailModal'
+export { GrupoInfoTab } from './GrupoInfoTab'
+export { GrupoSearchTab } from './GrupoSearchTab'
+export { GrupoSelectedTab } from './GrupoSelectedTab'

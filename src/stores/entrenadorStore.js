@@ -27,8 +27,8 @@ const useEntrenadorStore = create((set, get) => ({
     try {
       const response = await EntrenadorService.getAll(get().filtros)
       set({ 
-        entrenadores: response.data?.results || response.data || [],
-        totalItems: response.data?.count || 0,
+        entrenadores: response.results || response || [],
+        totalItems: response.count || 0,
         loading: false 
       })
     } catch (error) {
@@ -41,10 +41,10 @@ const useEntrenadorStore = create((set, get) => ({
     try {
       const response = await EntrenadorService.create(data)
       set((state) => ({ 
-        entrenadores: [...state.entrenadores, response.data],
+        entrenadores: [...state.entrenadores, response],
         loading: false 
       }))
-      return { success: true, data: response.data }
+      return { success: true, data: response }
     } catch (error) {
       set({ error: error.message, loading: false })
       return { success: false, error: error.message }
@@ -56,11 +56,11 @@ const useEntrenadorStore = create((set, get) => ({
     try {
       const response = await EntrenadorService.update(id, data)
       set((state) => ({
-        entrenadores: state.entrenadores.map(e => e.id === id ? response.data : e),
+        entrenadores: state.entrenadores.map(e => e.entrenador.id === parseInt(id) ? response : e),
         entrenadorSeleccionado: null,
         loading: false
       }))
-      return { success: true, data: response.data }
+      return { success: true, data: response }
     } catch (error) {
       set({ error: error.message, loading: false })
       return { success: false, error: error.message }
@@ -72,7 +72,7 @@ const useEntrenadorStore = create((set, get) => ({
     try {
       await EntrenadorService.delete(id)
       set((state) => ({
-        entrenadores: state.entrenadores.filter(e => e.id !== id),
+        entrenadores: state.entrenadores.filter(e => e.entrenador.id !== parseInt(id)),
         loading: false
       }))
       return { success: true }

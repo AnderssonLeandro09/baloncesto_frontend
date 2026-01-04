@@ -12,6 +12,7 @@ import {
   PruebasFisicasPage,
   EstudiantesVinculacionPage,
   NotFoundPage,
+  PerfilPage,
 } from './pages'
 import { useAuthStore } from './stores'
 
@@ -44,6 +45,7 @@ function App() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="perfil" element={<PerfilPage />} />
         
         {/* Rutas para ADMIN */}
         <Route 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Select, Card } from '../common';
 import usePruebaAntropometricaStore from '../../stores/pruebaAntropometricaStore';
-import { AtletaService } from '../../api';
+import apiClient from '../../api/apiClient';
 
 const PruebaAntropometricaCharts = () => {
   const [selectedAtleta, setSelectedAtleta] = useState(null);
@@ -14,15 +14,28 @@ const PruebaAntropometricaCharts = () => {
   useEffect(() => {
     const fetchAtletas = async () => {
       try {
-        const response = await AtletaService.getAll();
-        const atletasData = response.data?.results || response.data || [];
-        const options = atletasData.map((atleta) => ({
-          value: atleta.id,
-          label: `${atleta.nombre_atleta} ${atleta.apellido_atleta}`,
-        }));
-        setAtletas(options);
+        const response = await apiClient.get('/inscripciones', {
+          params: { estado: true }
+        });
+        const inscripciones = response.data?.results || response.data || [];
+        
+        const atletasMap = new Map();
+        inscripciones.forEach((inscripcion) => {
+          if (inscripcion.atleta && inscripcion.atleta.id) {
+            const atleta = inscripcion.atleta;
+            if (!atletasMap.has(atleta.id)) {
+              atletasMap.set(atleta.id, {
+                value: atleta.id,
+                label: `${atleta.persona?.first_name || ''} ${atleta.persona?.last_name || ''}`.trim() || `Atleta ${atleta.id}`,
+              });
+            }
+          }
+        });
+        
+        setAtletas(Array.from(atletasMap.values()));
       } catch (error) {
         console.error('Error fetching atletas:', error);
+        setAtletas([]);
       }
     };
 

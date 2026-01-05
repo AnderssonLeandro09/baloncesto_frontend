@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import { FiEdit2, FiTrash2, FiFileText } from 'react-icons/fi'
-import { Table, Modal } from '../common'
+import React from 'react'
+import { FiEdit2, FiEye, FiCheck, FiToggleLeft, FiToggleRight } from 'react-icons/fi'
+import { Table } from '../common'
 
 // Función para sanitizar texto y prevenir XSS en renderizado
 const sanitizeForDisplay = (text) => {
@@ -12,30 +12,24 @@ const sanitizeForDisplay = (text) => {
     .replace(/'/g, '&#39;')
 }
 
-const PruebasFisicasList = ({ pruebas, loading, onEdit, onToggleEstado }) => {
-  const [selectedObservaciones, setSelectedObservaciones] = useState(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-
-  const handleViewObservaciones = (prueba) => {
-    const labels = {
-      'FUERZA': 'FUERZA (Salto Horizontal)',
-      'VELOCIDAD': 'Velocidad y Agilidad (ZIGZAG)',
-      'AGILIDAD': 'Velocidad y Agilidad (ZIGZAG)'
-    }
-    
-    setSelectedObservaciones({
-      atleta: prueba.persona ? `${prueba.persona.nombre} ${prueba.persona.apellido}` : `Atleta ID: ${prueba.atleta}`,
-      tipo: labels[prueba.tipo_prueba] || prueba.tipo_prueba,
-      fecha: prueba.fecha_registro,
-      observaciones: prueba.observaciones || 'Sin observaciones'
-    })
-    setIsModalOpen(true)
+// Clasificación de rendimiento según tipo de prueba
+const clasificarRendimiento = (tipo, resultado) => {
+  if (tipo === 'FUERZA') {
+    if (resultado >= 250) return { nivel: 'Excelente', color: 'bg-green-100 text-green-700' }
+    if (resultado >= 220) return { nivel: 'Muy Bueno', color: 'bg-blue-100 text-blue-700' }
+    if (resultado >= 190) return { nivel: 'Bueno', color: 'bg-cyan-100 text-cyan-700' }
+    if (resultado >= 160) return { nivel: 'Regular', color: 'bg-yellow-100 text-yellow-700' }
+    return { nivel: 'A mejorar', color: 'bg-red-100 text-red-700' }
+  } else {
+    if (resultado <= 4.5) return { nivel: 'Excelente', color: 'bg-green-100 text-green-700' }
+    if (resultado <= 5.0) return { nivel: 'Muy Bueno', color: 'bg-blue-100 text-blue-700' }
+    if (resultado <= 5.5) return { nivel: 'Bueno', color: 'bg-cyan-100 text-cyan-700' }
+    if (resultado <= 6.0) return { nivel: 'Regular', color: 'bg-yellow-100 text-yellow-700' }
+    return { nivel: 'A mejorar', color: 'bg-red-100 text-red-700' }
   }
+}
 
-  const closeModal = () => {
-    setIsModalOpen(false)
-    setSelectedObservaciones(null)
-  }
+const PruebasFisicasList = ({ pruebas, loading, onEdit, onViewDetail, onToggleEstado }) => {
 
   const columns = [
     {
@@ -44,24 +38,31 @@ const PruebasFisicasList = ({ pruebas, loading, onEdit, onToggleEstado }) => {
       render: (_, row) => {
         const { persona } = row
         if (persona) {
-          return `${persona.nombre} ${persona.apellido}`
+          return (
+            <div>
+              <p className="font-medium">{`${persona.nombre} ${persona.apellido}`}</p>
+              <p className="text-xs text-gray-500">{persona.identificacion || 'N/A'}</p>
+            </div>
+          )
         }
         return `Atleta ID: ${row.atleta}`
       }
     },
     {
-      key: 'identificacion',
-      title: 'Identificación',
-      render: (_, row) => row.persona?.identificacion || 'N/A'
-    },
-    {
       key: 'fecha_registro',
       title: 'Fecha',
+      render: (fecha) => (
+        <span className="text-sm">{fecha}</span>
+      )
     },
     {
       key: 'semestre',
       title: 'Semestre',
-      render: (_, row) => row.semestre || 'N/A'
+      render: (_, row) => (
+        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+          {row.semestre || 'N/A'}
+        </span>
+      )
     },
     {
       key: 'tipo_prueba',
@@ -70,23 +71,44 @@ const PruebasFisicasList = ({ pruebas, loading, onEdit, onToggleEstado }) => {
         const labels = {
           'FUERZA': 'Fuerza (Salto Horizontal)',
           'VELOCIDAD': 'Velocidad',
-          'AGILIDAD': 'Agilidad (ZIGZAG)'
+          'AGILIDAD': 'Agilidad (ZigZag)'
         }
-        return labels[tipo] || tipo
+        const colors = {
+          'FUERZA': 'bg-blue-100 text-blue-700',
+          'VELOCIDAD': 'bg-green-100 text-green-700',
+          'AGILIDAD': 'bg-amber-100 text-amber-700'
+        }
+        return (
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[tipo] || 'bg-gray-100'}`}>
+            {labels[tipo] || tipo}
+          </span>
+        )
       }
     },
     {
       key: 'resultado',
       title: 'Resultado',
-      render: (val, row) => `${val} ${row.unidad_medida}`
+      render: (val, row) => {
+        const clasificacion = clasificarRendimiento(row.tipo_prueba, parseFloat(val))
+        return (
+          <div className="text-center">
+            <p className="font-semibold text-lg">{val}</p>
+            <p className="text-xs text-gray-500">{row.unidad_medida}</p>
+            <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs ${clasificacion.color}`}>
+              {clasificacion.nivel}
+            </span>
+          </div>
+        )
+      }
     },
     {
       key: 'estado',
       title: 'Estado',
       render: (estado) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+        <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit ${
           estado ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
         }`}>
+          {estado ? <FiCheck className="w-3 h-3" /> : null}
           {estado ? 'Activo' : 'Inactivo'}
         </span>
       )
@@ -95,71 +117,48 @@ const PruebasFisicasList = ({ pruebas, loading, onEdit, onToggleEstado }) => {
       key: 'actions',
       title: 'Acciones',
       render: (_, row) => (
-        <div className="flex space-x-2">
-          <button
-            onClick={() => handleViewObservaciones(row)}
-            className="p-1 text-purple-600 hover:bg-purple-50 rounded"
-            title="Ver observaciones"
-          >
-            <FiFileText className="w-4 h-4" />
-          </button>
+        <div className="flex space-x-1">
+          {onViewDetail && (
+            <button
+              onClick={() => onViewDetail(row)}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+              title="Ver detalle"
+            >
+              <FiEye className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={() => onEdit(row)}
-            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
             title="Editar"
           >
             <FiEdit2 className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => onToggleEstado(row)}
-            className={`p-1 rounded hover:bg-gray-100 ${row.estado ? 'text-red-600' : 'text-green-600'}`}
-            title={row.estado ? 'Desactivar' : 'Activar'}
-          >
-            <FiTrash2 className="w-4 h-4" />
-          </button>
+          {onToggleEstado && (
+            <button
+              onClick={() => onToggleEstado(row)}
+              className={`p-1.5 rounded transition-colors ${
+                row.estado 
+                  ? 'text-amber-600 hover:bg-amber-50' 
+                  : 'text-green-600 hover:bg-green-50'
+              }`}
+              title={row.estado ? 'Deshabilitar' : 'Habilitar'}
+            >
+              {row.estado ? <FiToggleRight className="w-4 h-4" /> : <FiToggleLeft className="w-4 h-4" />}
+            </button>
+          )}
         </div>
       ),
     },
   ]
 
   return (
-    <>
-      <Table
-        columns={columns}
-        data={pruebas}
-        loading={loading}
-        emptyMessage="No hay pruebas físicas registradas"
-      />
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title="Observaciones de Prueba Física"
-      >
-        {selectedObservaciones && (
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Atleta:</label>
-              <p className="text-gray-900 mt-1">{selectedObservaciones.atleta}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Tipo de Prueba:</label>
-              <p className="text-gray-900 mt-1">{selectedObservaciones.tipo}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Fecha:</label>
-              <p className="text-gray-900 mt-1">{selectedObservaciones.fecha}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Observaciones:</label>
-              <div className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded-md min-h-[100px] whitespace-pre-wrap">
-                {selectedObservaciones.observaciones}
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
-    </>
+    <Table
+      columns={columns}
+      data={pruebas}
+      loading={loading}
+      emptyMessage="No hay pruebas físicas registradas"
+    />
   )
 }
 

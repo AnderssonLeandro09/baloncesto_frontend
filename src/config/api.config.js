@@ -28,7 +28,7 @@ export const ENDPOINTS = {
   GRUPOS_ATLETAS: '/grupos-atletas',
   
   // Inscripciones
-  INSCRIPCIONES: '/inscripciones',
+  INSCRIPCIONES: '/inscripciones/',
   
   // Pruebas Antropométricas
   PRUEBAS_ANTROPOMETRICAS: '/pruebas-antropometricas',

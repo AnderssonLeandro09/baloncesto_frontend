@@ -12,7 +12,6 @@ const initialValues = {
   email: '',
   password: '',
   phono: '',
-  gender: 'M',
   direction: '',
   carrera: '',
   semestre: ''
@@ -77,7 +76,6 @@ const EstudianteVinculacionForm = ({ isOpen, onClose }) => {
           email: '', // No mostrar email en edición
           password: '', // No mostrar password en edición
           phono: persona.phono || persona.phone || '',
-          gender: persona.gender || 'M',
           direction: persona.direction || persona.address || '',
           carrera: estudiante.carrera || '',
           semestre: estudiante.semestre || ''
@@ -94,7 +92,6 @@ const EstudianteVinculacionForm = ({ isOpen, onClose }) => {
       first_name: formValues.first_name,
       last_name: formValues.last_name,
       phono: formValues.phono,
-      gender: formValues.gender,
       direction: formValues.direction,
       type_identification: 'CEDULA',
       type_stament: 'ESTUDIANTES'
@@ -202,25 +199,13 @@ const EstudianteVinculacionForm = ({ isOpen, onClose }) => {
               </>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <Input
                 label="Teléfono"
                 name="phono"
                 value={values.phono}
                 onChange={handleChange}
                 onBlur={handleBlur}
-              />
-              <Select
-                label="Género"
-                name="gender"
-                value={values.gender}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                options={[
-                  { value: 'M', label: 'Masculino' },
-                  { value: 'F', label: 'Femenino' },
-                  { value: 'O', label: 'Otro' }
-                ]}
               />
             </div>
 

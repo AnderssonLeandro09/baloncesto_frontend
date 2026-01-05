@@ -18,19 +18,6 @@ const InscripcionList = ({
   // Definición de columnas de la tabla
   const columns = [
     {
-      key: 'id',
-      title: 'ID',
-      width: '60px',
-      render: (_, row) => {
-        const id = row.inscripcion?.id || row.id
-        return (
-          <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
-            #{id}
-          </span>
-        )
-      },
-    },
-    {
       key: 'atleta',
       title: 'Atleta',
       render: (_, row) => {

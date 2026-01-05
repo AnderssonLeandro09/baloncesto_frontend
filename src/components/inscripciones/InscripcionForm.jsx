@@ -2,18 +2,14 @@
  * Componente InscripcionForm
  * Formulario completo de creación/edición de inscripciones
  * Compatible con backend Django - Estructura: persona + atleta + inscripcion
- * 
- * LÓGICA SMART:
- * - Detecta automáticamente el tipo de inscripción basado en la edad
- * - El campo tipo_inscripcion está DESHABILITADO (el sistema lo calcula)
- * - Muestra/oculta campos de representante con animación suave
- * - Envía valores "MENOR_EDAD" o "MAYOR_EDAD" al backend (no texto legible)
  */
 
-import { useState, useEffect } from 'react'
-import { FiSave, FiX, FiLoader, FiAlertCircle, FiUser, FiHeart, FiUsers, FiFileText, FiLock, FiInfo, FiAlertTriangle } from 'react-icons/fi'
+import { useState, useEffect, useCallback } from 'react'
+import { FiSave, FiX, FiLoader, FiAlertCircle, FiUser, FiHeart, FiUsers, FiFileText, FiLock, FiInfo, FiAlertTriangle, FiCheckCircle } from 'react-icons/fi'
 import { Button, Card } from '../common'
-import { isValidEmail, isValidCedula, isValidPhone, isValidPassword } from '../../utils/validators'
+import { isValidEmail, isValidCedula, isValidPhone } from '../../utils/validators'
+import apiClient from '../../api/apiClient'
+import { ENDPOINTS } from '../../config/api.config'
 
 // ============================================================================
 // CONSTANTES - Deben coincidir EXACTAMENTE con el backend (models.py)
@@ -63,8 +59,6 @@ const calcularEdad = (fechaNacimiento) => {
 /**
  * Determina automáticamente el tipo de inscripción basado en la edad
  * SMART: El sistema calcula esto, el usuario no puede modificarlo
- * @param {number|string} edad - Edad del atleta
- * @returns {string} MENOR_EDAD o MAYOR_EDAD
  */
 const determinarTipoInscripcion = (edad) => {
   const edadNum = typeof edad === 'string' ? parseInt(edad, 10) : edad
@@ -74,13 +68,14 @@ const determinarTipoInscripcion = (edad) => {
 
 /**
  * Verifica si el atleta es menor de edad
- * @param {number|string} edad - Edad del atleta  
- * @returns {boolean}
  */
 const esMenorDeEdad = (edad) => {
   const edadNum = typeof edad === 'string' ? parseInt(edad, 10) : edad
   return !isNaN(edadNum) && edadNum < EDAD_MAYORIA
 }
+
+// Fecha de hoy para restricciones
+const TODAY = new Date().toISOString().split('T')[0]
 
 const InscripcionForm = ({ 
   inscripcion = null, 
@@ -89,17 +84,21 @@ const InscripcionForm = ({
   loading = false 
 }) => {
   const [submitError, setSubmitError] = useState(null)
+  const [duplicateError, setDuplicateError] = useState(null) // Error específico de cédula duplicada
   const [errors, setErrors] = useState({})
-  const [isSubmitting, setIsSubmitting] = useState(false) // Protección contra doble envío
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
-  // Estado del formulario con todos los campos necesarios
+  // Estados para validación en tiempo real de cédula
+  const [isCheckingCedula, setIsCheckingCedula] = useState(false)
+  const [cedulaError, setCedulaError] = useState(null)
+  const [cedulaValid, setCedulaValid] = useState(false)
+  
+  // Estado del formulario
   const [formData, setFormData] = useState({
     // === DATOS DE PERSONA ===
     firts_name: '',
     last_name: '',
     identification: '',
-    email: '',
-    password: '',
     phono: '',
     direction: '',
     
@@ -113,7 +112,7 @@ const InscripcionForm = ({
     medicamentos: '',
     lesiones: '',
     
-    // === DATOS DEL REPRESENTANTE (para menores) ===
+    // === DATOS DEL REPRESENTANTE ===
     nombre_representante: '',
     cedula_representante: '',
     parentesco_representante: '',
@@ -135,8 +134,6 @@ const InscripcionForm = ({
         firts_name: inscripcion?.persona?.firts_name || inscripcion?.persona?.first_name || '',
         last_name: inscripcion?.persona?.last_name || '',
         identification: inscripcion?.persona?.identification || inscripcion?.persona?.dni || '',
-        email: inscripcion?.persona?.email || '',
-        password: '',
         phono: inscripcion?.persona?.phono || inscripcion?.persona?.phone || '',
         direction: inscripcion?.persona?.direction || inscripcion?.persona?.address || '',
         // Atleta
@@ -163,21 +160,73 @@ const InscripcionForm = ({
     }
   }, [inscripcion])
 
+  // === VALIDACIÓN EN TIEMPO REAL DE CÉDULA DUPLICADA ===
+  useEffect(() => {
+    const cedula = formData.identification?.replace(/\D/g, '')
+    
+    // Si estamos editando, no validar la misma cédula
+    const cedulaOriginal = inscripcion?.persona?.identification || inscripcion?.persona?.dni || ''
+    if (cedula === cedulaOriginal && cedulaOriginal) {
+      setCedulaError(null)
+      setCedulaValid(true)
+      return
+    }
+    
+    // Solo validar cuando tenga exactamente 10 dígitos
+    if (cedula?.length !== 10) {
+      setCedulaError(null)
+      setCedulaValid(false)
+      return
+    }
+    
+    // Debounce: esperar 500ms antes de hacer la petición
+    const timeoutId = setTimeout(async () => {
+      setIsCheckingCedula(true)
+      try {
+        const response = await apiClient.get(`${ENDPOINTS.INSCRIPCIONES}verificar-cedula/`, {
+          params: { dni: cedula }
+        })
+        
+        if (response.data?.existe) {
+          setCedulaError('⚠️ Este atleta ya tiene una inscripción activa.')
+          setCedulaValid(false)
+        } else {
+          setCedulaError(null)
+          setCedulaValid(true)
+        }
+      } catch (error) {
+        console.error('Error verificando cédula:', error)
+        // Si hay error de red, permitir continuar
+        setCedulaError(null)
+        setCedulaValid(true)
+      } finally {
+        setIsCheckingCedula(false)
+      }
+    }, 500)
+    
+    return () => clearTimeout(timeoutId)
+  }, [formData.identification, inscripcion])
+
   // Manejar cambios en los campos
   const handleChange = (e) => {
     const { name, value } = e.target
     let updates = { [name]: value }
+
+    // REGLA: Restricción estricta de solo números
+    const numericFields = ['identification', 'phono', 'cedula_representante', 'telefono_representante']
+    if (numericFields.includes(name)) {
+      updates[name] = value.replace(/\D/g, '') // Eliminar todo lo que no sea dígito
+    }
     
-    // SMART: Auto-calcular edad y tipo de inscripción cuando cambia la fecha de nacimiento
+    // SMART: Auto-calcular edad y tipo
     if (name === 'fecha_nacimiento' && value) {
       const edadCalculada = calcularEdad(value)
       if (edadCalculada !== null) {
         updates.edad = edadCalculada.toString()
-        // AUTOMÁTICO: El tipo de inscripción se determina por la edad
         const nuevoTipo = determinarTipoInscripcion(edadCalculada)
         updates.tipo_inscripcion = nuevoTipo
         
-        // SMART: Si pasa a ser MAYOR_EDAD, limpiar campos del representante
+        // Limpiar campos del representante si pasa a mayor de edad
         if (nuevoTipo === TIPO_INSCRIPCION.MAYOR_EDAD) {
           CAMPOS_REPRESENTANTE.forEach(campo => {
             updates[campo] = ''
@@ -186,152 +235,74 @@ const InscripcionForm = ({
       }
     }
     
-    // SMART: Si el usuario modifica manualmente la edad, recalcular tipo
-    if (name === 'edad' && value) {
-      const nuevoTipo = determinarTipoInscripcion(value)
-      updates.tipo_inscripcion = nuevoTipo
-      
-      // Limpiar campos del representante si es mayor de edad
-      if (nuevoTipo === TIPO_INSCRIPCION.MAYOR_EDAD) {
-        CAMPOS_REPRESENTANTE.forEach(campo => {
-          updates[campo] = ''
-        })
-      }
-    }
-    
     setFormData(prev => ({ ...prev, ...updates }))
+    // Limpiar error del campo modificado
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }))
+    }
+    // Limpiar error de cédula duplicada cuando el usuario modifica la cédula
+    if (name === 'identification') {
+      setDuplicateError(null)
     }
     setSubmitError(null)
   }
   
-  // Computed: ¿Es menor de edad? (para mostrar/ocultar secciones)
   const isMinor = esMenorDeEdad(formData.edad)
-  
-  // Computed: ¿Tiene fecha de nacimiento válida?
   const tieneEdadCalculada = formData.edad !== '' && formData.edad !== null
 
-  // Validar formulario con reglas robustas
+  // Validar formulario
   const validateForm = () => {
     const newErrors = {}
     
-    // === VALIDACIONES DE PERSONA ===
-    if (!formData.firts_name.trim()) {
-      newErrors.firts_name = 'El nombre es requerido'
-    } else if (formData.firts_name.trim().length < 2) {
-      newErrors.firts_name = 'El nombre debe tener al menos 2 caracteres'
-    } else if (formData.firts_name.trim().length > 100) {
-      newErrors.firts_name = 'El nombre no puede exceder 100 caracteres'
-    }
-    
-    if (!formData.last_name.trim()) {
-      newErrors.last_name = 'El apellido es requerido'
-    } else if (formData.last_name.trim().length < 2) {
-      newErrors.last_name = 'El apellido debe tener al menos 2 caracteres'
-    } else if (formData.last_name.trim().length > 100) {
-      newErrors.last_name = 'El apellido no puede exceder 100 caracteres'
-    }
+    // === PERSONA ===
+    if (!formData.firts_name.trim()) newErrors.firts_name = 'El nombre es requerido'
+    if (!formData.last_name.trim()) newErrors.last_name = 'El apellido es requerido'
     
     if (!formData.identification.trim()) {
       newErrors.identification = 'La identificación es requerida'
-    } else if (!isValidCedula(formData.identification.trim())) {
-      newErrors.identification = 'Cédula ecuatoriana inválida (10 dígitos)'
+    } else if (formData.identification.trim().length !== 10) {
+      newErrors.identification = 'Debe tener exactamente 10 dígitos'
     }
     
-    if (!formData.email.trim()) {
-      newErrors.email = 'El email es requerido'
-    } else if (!isValidEmail(formData.email.trim())) {
-      newErrors.email = 'Formato de email inválido'
+    if (formData.phono?.trim() && formData.phono.trim().length !== 10) {
+      newErrors.phono = 'Debe tener exactamente 10 dígitos'
     }
     
-    // Validación de teléfono (opcional pero si se ingresa debe ser válido)
-    if (formData.phono?.trim() && !isValidPhone(formData.phono.trim())) {
-      newErrors.phono = 'Formato de teléfono inválido'
-    }
-    
-    // === VALIDACIÓN DE PASSWORD (con función mejorada) ===
-    if (!inscripcion) {
-      const passwordValidation = isValidPassword(formData.password)
-      if (!passwordValidation.isValid) {
-        newErrors.password = passwordValidation.errors[0] // Mostrar primer error
-      }
-    }
-    
-    // === VALIDACIONES DE ATLETA ===
+    // === ATLETA ===
     if (!formData.fecha_nacimiento) {
-      newErrors.fecha_nacimiento = 'La fecha de nacimiento es requerida'
+      newErrors.fecha_nacimiento = 'Fecha requerida'
     } else {
-      const fechaNac = new Date(formData.fecha_nacimiento)
-      const hoy = new Date()
       const edadCalculada = calcularEdad(formData.fecha_nacimiento)
-      
-      if (fechaNac > hoy) {
-        newErrors.fecha_nacimiento = 'La fecha no puede ser futura'
-      } else if (edadCalculada < 5 || edadCalculada > 80) {
+      if (edadCalculada < 5 || edadCalculada > 80) {
         newErrors.fecha_nacimiento = 'La edad debe estar entre 5 y 80 años'
-      }
-    }
-    
-    if (!formData.edad) {
-      newErrors.edad = 'La edad es requerida'
-    } else {
-      const edad = parseInt(formData.edad, 10)
-      if (isNaN(edad) || edad < 5 || edad > 80) {
-        newErrors.edad = 'La edad debe estar entre 5 y 80 años'
-      }
-      // Verificar coherencia con fecha de nacimiento
-      if (formData.fecha_nacimiento) {
-        const edadCalculada = calcularEdad(formData.fecha_nacimiento)
-        if (Math.abs(edad - edadCalculada) > 1) {
-          newErrors.edad = `La edad no coincide con la fecha de nacimiento (debería ser ~${edadCalculada})`
-        }
       }
     }
     
     if (!formData.sexo) newErrors.sexo = 'El sexo es requerido'
     
-    // === VALIDACIONES DE INSCRIPCIÓN ===
-    if (!formData.fecha_inscripcion) {
-      newErrors.fecha_inscripcion = 'La fecha de inscripción es requerida'
-    } else {
-      const fechaInsc = new Date(formData.fecha_inscripcion)
-      const hoy = new Date()
-      const hace30Dias = new Date()
-      hace30Dias.setDate(hoy.getDate() - 30)
+    // === INSCRIPCIÓN ===
+    if (!formData.fecha_inscripcion) newErrors.fecha_inscripcion = 'Fecha requerida'
+    
+    // === REPRESENTANTE (Solo menores) ===
+    if (isMinor) {
+      if (!formData.nombre_representante?.trim()) newErrors.nombre_representante = 'Requerido para menores'
       
-      if (fechaInsc > hoy) {
-        newErrors.fecha_inscripcion = 'La fecha no puede ser futura'
-      } else if (fechaInsc < hace30Dias) {
-        newErrors.fecha_inscripcion = 'La fecha no puede ser anterior a 30 días'
-      }
-    }
-    
-    if (!formData.tipo_inscripcion) newErrors.tipo_inscripcion = 'El tipo es requerido'
-    
-    // === VALIDACIONES DE REPRESENTANTE (obligatorias para menores) ===
-    // Usar la función helper en lugar de comparar directamente con el string
-    const esAtletaMenor = esMenorDeEdad(formData.edad)
-    if (esAtletaMenor) {
-      if (!formData.nombre_representante?.trim()) {
-        newErrors.nombre_representante = 'El nombre del representante es requerido para menores'
-      }
       if (!formData.cedula_representante?.trim()) {
-        newErrors.cedula_representante = 'La cédula del representante es requerida'
-      } else if (!isValidCedula(formData.cedula_representante.trim())) {
-        newErrors.cedula_representante = 'Cédula del representante inválida'
+        newErrors.cedula_representante = 'Requerido'
+      } else if (formData.cedula_representante.trim().length !== 10) {
+        newErrors.cedula_representante = 'Debe tener 10 dígitos'
       }
-      if (!formData.parentesco_representante?.trim()) {
-        newErrors.parentesco_representante = 'El parentesco es requerido'
-      }
+      
+      if (!formData.parentesco_representante?.trim()) newErrors.parentesco_representante = 'Requerido'
+      
       if (!formData.telefono_representante?.trim()) {
-        newErrors.telefono_representante = 'El teléfono del representante es requerido'
-      } else if (!isValidPhone(formData.telefono_representante.trim())) {
-        newErrors.telefono_representante = 'Teléfono del representante inválido'
+        newErrors.telefono_representante = 'Requerido'
+      } else if (formData.telefono_representante.trim().length !== 10) {
+        newErrors.telefono_representante = 'Debe tener 10 dígitos'
       }
-      // Validar email del representante si se proporciona
+      
       if (formData.correo_representante?.trim() && !isValidEmail(formData.correo_representante.trim())) {
-        newErrors.correo_representante = 'Email del representante inválido'
+        newErrors.correo_representante = 'Email inválido'
       }
     }
     
@@ -339,39 +310,48 @@ const InscripcionForm = ({
     return Object.keys(newErrors).length === 0
   }
 
-  // Manejar envío del formulario
+  // === HANDLE SUBMIT CORREGIDO Y BLINDADO ===
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSubmitError(null)
     
-    // Protección contra doble envío
     if (isSubmitting || loading) return
-    
     if (!validateForm()) return
     
-    setIsSubmitting(true) // Bloquear envíos adicionales
+    setIsSubmitting(true)
     
     try {
-      // CRÍTICO: Construir payload con estructura que espera el backend
-      // Aplicar sanitización a todos los campos de texto para prevenir XSS
+      const cleanId = formData.identification.replace(/\D/g, '')
+
+      // 2. CONSTRUCCIÓN DEL PAYLOAD SEGURO 
       const payload = {
         persona: {
           firts_name: sanitizeInput(formData.firts_name),
           last_name: sanitizeInput(formData.last_name),
-          identification: sanitizeInput(formData.identification),
-          email: formData.email.trim().toLowerCase(), // Email no necesita sanitización HTML
-          phono: formData.phono ? sanitizeInput(formData.phono) : null,
-          direction: formData.direction ? sanitizeInput(formData.direction) : null,
+          identification: cleanId,
+          // Convertimos nulos a strings vacíos para evitar errores
+          phono: formData.phono ? sanitizeInput(formData.phono) : "",
+          direction: formData.direction ? sanitizeInput(formData.direction) : "",
         },
         atleta: {
           fecha_nacimiento: formData.fecha_nacimiento,
-          edad: parseInt(formData.edad, 10),
+          edad: parseInt(formData.edad, 10) || 0,
           sexo: formData.sexo,
-          tipo_sangre: formData.tipo_sangre || null,
-          alergias: formData.alergias ? sanitizeInput(formData.alergias) : null,
-          enfermedades: formData.enfermedades ? sanitizeInput(formData.enfermedades) : null,
-          medicamentos: formData.medicamentos ? sanitizeInput(formData.medicamentos) : null,
-          lesiones: formData.lesiones ? sanitizeInput(formData.lesiones) : null,
+          // Campos opcionales como strings vacíos si no hay dato
+          tipo_sangre: formData.tipo_sangre || "",
+          alergias: formData.alergias ? sanitizeInput(formData.alergias) : "",
+          enfermedades: formData.enfermedades ? sanitizeInput(formData.enfermedades) : "",
+          medicamentos: formData.medicamentos ? sanitizeInput(formData.medicamentos) : "",
+          lesiones: formData.lesiones ? sanitizeInput(formData.lesiones) : "",
+          
+          // Campos representante (vacíos si es mayor)
+          nombre_representante: isMinor ? (formData.nombre_representante || "") : "",
+          cedula_representante: isMinor ? (formData.cedula_representante || "") : "",
+          parentesco_representante: isMinor ? (formData.parentesco_representante || "") : "",
+          telefono_representante: isMinor ? (formData.telefono_representante || "") : "",
+          correo_representante: isMinor ? (formData.correo_representante || "") : "",
+          direccion_representante: isMinor ? (formData.direccion_representante || "") : "",
+          ocupacion_representante: isMinor ? (formData.ocupacion_representante || "") : ""
         },
         inscripcion: {
           fecha_inscripcion: formData.fecha_inscripcion,
@@ -379,36 +359,54 @@ const InscripcionForm = ({
         }
       }
       
-      // Password solo en creación (no sanitizar para permitir caracteres especiales)
-      if (!inscripcion && formData.password) {
-        payload.persona.password = formData.password
-      }
-      
-      // Datos del representante si es menor de edad (con sanitización)
-      // Usar esMenorDeEdad() para consistencia
-      if (esMenorDeEdad(formData.edad)) {
-        payload.atleta.nombre_representante = formData.nombre_representante ? sanitizeInput(formData.nombre_representante) : null
-        payload.atleta.cedula_representante = formData.cedula_representante ? sanitizeInput(formData.cedula_representante) : null
-        payload.atleta.parentesco_representante = formData.parentesco_representante ? sanitizeInput(formData.parentesco_representante) : null
-        payload.atleta.telefono_representante = formData.telefono_representante ? sanitizeInput(formData.telefono_representante) : null
-        payload.atleta.correo_representante = formData.correo_representante?.trim().toLowerCase() || null
-        payload.atleta.direccion_representante = formData.direccion_representante ? sanitizeInput(formData.direccion_representante) : null
-        payload.atleta.ocupacion_representante = formData.ocupacion_representante ? sanitizeInput(formData.ocupacion_representante) : null
-      }
-      
       await onSubmit(payload)
+      
     } catch (error) {
-      const errorMessage = error.response?.data?.detail 
-        || error.response?.data?.error
-        || error.message 
-        || 'Error al guardar la inscripción'
-      setSubmitError(errorMessage)
+      console.error("Error al guardar inscripción:", error)
+      
+      // Capturar mensaje del backend 
+      let errorMsg = "Ocurrió un error al guardar la inscripción."
+      
+      if (error.response && error.response.data) {
+        // Prioridad al mensaje detallado del backend
+        if (error.response.data.detail) {
+          errorMsg = error.response.data.detail
+        } else if (error.response.data.message) {
+          errorMsg = error.response.data.message
+        } else if (typeof error.response.data === 'string') {
+          errorMsg = error.response.data
+        }
+      } else if (error.message) {
+        errorMsg = error.message
+      }
+      
+      // Limpiar formato técnico: remover corchetes y comillas
+      errorMsg = errorMsg
+        .replace(/^\["?|"?\]$/g, '')
+        .replace(/^\['|'\]$/g, '')
+        .trim()
+      
+      // Detectar error de cédula duplicada (UC-004 Curso Alterno 8)
+      const isDuplicateError = 
+        errorMsg.toLowerCase().includes('ya se encuentra registrado') ||
+        errorMsg.toLowerCase().includes('ya existe') ||
+        errorMsg.toLowerCase().includes('identification') ||
+        errorMsg.toLowerCase().includes('duplicado')
+      
+      if (isDuplicateError) {
+        // Mensaje amigable para el usuario
+        setDuplicateError('⚠️ Esta cédula ya cuenta con una inscripción activa. Por favor, verifique el número.')
+        setSubmitError(null) // No mostrar el error genérico
+      } else {
+        setSubmitError(errorMsg)
+        setDuplicateError(null)
+      }
     } finally {
-      setIsSubmitting(false) // Desbloquear envío
+      setIsSubmitting(false)
     }
   }
 
-  // Renderizar input
+  // Renderizar inputs
   const renderInput = (name, label, type = 'text', required = false, props = {}) => (
     <div>
       <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
@@ -423,14 +421,13 @@ const InscripcionForm = ({
         disabled={loading}
         className={`block w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
           errors[name] ? 'border-red-300' : 'border-gray-300'
-        }`}
+        } ${props.readOnly ? 'bg-gray-100 text-gray-500' : ''}`}
         {...props}
       />
       {errors[name] && <p className="mt-1 text-sm text-red-600">{errors[name]}</p>}
     </div>
   )
 
-  // Renderizar select
   const renderSelect = (name, label, options, required = false) => (
     <div>
       <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
@@ -455,7 +452,6 @@ const InscripcionForm = ({
     </div>
   )
 
-  // Renderizar textarea
   const renderTextarea = (name, label, rows = 2) => (
     <div>
       <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
@@ -473,11 +469,28 @@ const InscripcionForm = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
-      {/* Error general */}
-      {submitError && (
+      {/* ALERTA CRÍTICA: Cédula duplicada - Centrada y prominente */}
+      {duplicateError && (
+        <div 
+          className="bg-red-100 border-2 border-red-400 rounded-xl p-5 shadow-lg animate-pulse"
+          style={{ width: '95%', margin: '10px auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+        >
+          <div className="text-center">
+            <div className="flex justify-center mb-2">
+              <FiAlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+            <h4 className="text-lg font-bold text-red-800 mb-1">Cédula ya registrada</h4>
+            <p className="text-sm text-red-700">{duplicateError}</p>
+            <p className="text-xs text-red-500 mt-2">Corrija el número de cédula para continuar.</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Error general (otros errores) */}
+      {submitError && !duplicateError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
           <FiAlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="overflow-hidden break-words w-full">
             <h4 className="text-sm font-medium text-red-800">Error al guardar</h4>
             <p className="text-sm text-red-600 mt-1">{submitError}</p>
           </div>
@@ -493,10 +506,58 @@ const InscripcionForm = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {renderInput('firts_name', 'Nombres', 'text', true)}
           {renderInput('last_name', 'Apellidos', 'text', true)}
-          {renderInput('identification', 'Cédula/Identificación', 'text', true)}
-          {renderInput('email', 'Correo Electrónico', 'email', true)}
-          {!inscripcion && renderInput('password', 'Contraseña', 'password', true, { minLength: 8 })}
-          {renderInput('phono', 'Teléfono', 'tel')}
+          
+          {/* CÉDULA CON VALIDACIÓN EN TIEMPO REAL */}
+          <div>
+            <label htmlFor="identification" className="block text-sm font-medium text-gray-700 mb-1">
+              Cédula/Identificación <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                id="identification"
+                name="identification"
+                value={formData.identification || ''}
+                onChange={handleChange}
+                disabled={loading}
+                maxLength={10}
+                placeholder="10 dígitos"
+                className={`block w-full px-3 py-2 pr-10 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  cedulaError || errors.identification 
+                    ? 'border-red-400 bg-red-50' 
+                    : cedulaValid && formData.identification?.length === 10
+                      ? 'border-green-400 bg-green-50'
+                      : 'border-gray-300'
+                }`}
+              />
+              {/* Indicador de estado */}
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                {isCheckingCedula && (
+                  <FiLoader className="w-4 h-4 text-blue-500 animate-spin" />
+                )}
+                {!isCheckingCedula && cedulaError && (
+                  <FiAlertCircle className="w-4 h-4 text-red-500" />
+                )}
+                {!isCheckingCedula && cedulaValid && formData.identification?.length === 10 && (
+                  <FiCheckCircle className="w-4 h-4 text-green-500" />
+                )}
+              </div>
+            </div>
+            {/* Mensaje de ayuda/error */}
+            {cedulaError ? (
+              <p className="mt-1 text-sm text-red-600 font-medium">{cedulaError}</p>
+            ) : errors.identification ? (
+              <p className="mt-1 text-sm text-red-600">{errors.identification}</p>
+            ) : isCheckingCedula ? (
+              <p className="mt-1 text-sm text-blue-600">Verificando disponibilidad...</p>
+            ) : cedulaValid && formData.identification?.length === 10 ? (
+              <p className="mt-1 text-sm text-green-600">✓ Cédula disponible</p>
+            ) : (
+              <p className="mt-1 text-sm text-gray-500">Ingrese los 10 dígitos</p>
+            )}
+          </div>
+          
+          {renderInput('phono', 'Teléfono', 'tel', false, { maxLength: 10, placeholder: '10 dígitos' })}
           <div className="md:col-span-2">
             {renderInput('direction', 'Dirección')}
           </div>
@@ -511,7 +572,8 @@ const InscripcionForm = ({
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {renderInput('fecha_nacimiento', 'Fecha de Nacimiento', 'date', true)}
-          {renderInput('edad', 'Edad', 'number', true, { min: 0, max: 100 })}
+          {/* Edad readOnly y estilizada */}
+          {renderInput('edad', 'Edad', 'number', true, { readOnly: true, className: "bg-gray-100 cursor-not-allowed" })}
           {renderSelect('sexo', 'Sexo', [
             { value: 'M', label: 'Masculino' },
             { value: 'F', label: 'Femenino' },
@@ -549,14 +611,14 @@ const InscripcionForm = ({
             <div>
               <h4 className="text-sm font-semibold text-amber-800">⚠️ Atleta menor de edad detectado</h4>
               <p className="text-sm text-amber-700 mt-1">
-                Se requiere información del tutor o representante legal. Los campos aparecerán a continuación.
+                Se requiere información del tutor o representante legal.
               </p>
             </div>
           </div>
         )}
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {renderInput('fecha_inscripcion', 'Fecha de Inscripción', 'date', true)}
+          {renderInput('fecha_inscripcion', 'Fecha de Inscripción', 'date', true, { max: TODAY })}
           
           {/* TIPO DE INSCRIPCIÓN - AUTOMÁTICO (Solo lectura) */}
           <div>
@@ -564,7 +626,7 @@ const InscripcionForm = ({
               Tipo de Inscripción <span className="text-red-500">*</span>
               <span className="ml-2 inline-flex items-center text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
                 <FiLock className="w-3 h-3 mr-1" />
-                Calculado automáticamente
+                Auto
               </span>
             </label>
             <div className="relative">
@@ -572,50 +634,35 @@ const InscripcionForm = ({
                 id="tipo_inscripcion"
                 name="tipo_inscripcion"
                 value={formData.tipo_inscripcion}
-                disabled={true} // SIEMPRE deshabilitado - el sistema lo calcula
+                disabled={true} // SIEMPRE deshabilitado
                 className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-700 cursor-not-allowed"
-                aria-describedby="tipo-inscripcion-help"
               >
                 <option value={TIPO_INSCRIPCION.MAYOR_EDAD}>Mayor de Edad</option>
-                <option value={TIPO_INSCRIPCION.MENOR_EDAD}>Menor de Edad (requiere representante)</option>
+                <option value={TIPO_INSCRIPCION.MENOR_EDAD}>Menor de Edad</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-8 pointer-events-none">
                 <FiLock className="w-4 h-4 text-gray-400" />
               </div>
             </div>
-            {/* Indicador visual del tipo con transición */}
-            <div 
-              id="tipo-inscripcion-help"
-              className={`mt-2 flex items-center text-xs rounded-md px-2 py-1.5 transition-all duration-300 ${
-                isMinor 
-                  ? 'bg-purple-100 text-purple-700 border border-purple-200' 
-                  : 'bg-green-100 text-green-700 border border-green-200'
-              }`}
-            >
-              <FiInfo className="w-3 h-3 mr-1.5 flex-shrink-0" />
-              <span>
-                {!tieneEdadCalculada 
-                  ? 'Ingrese la fecha de nacimiento para calcular el tipo'
-                  : isMinor 
-                    ? `Edad: ${formData.edad} años → MENOR_EDAD (requiere representante legal)`
-                    : `Edad: ${formData.edad} años → MAYOR_EDAD (no requiere representante)`
-                }
-              </span>
+            {/* Indicador visual */}
+            <div className={`mt-2 text-xs rounded-md px-2 py-1.5 ${
+                isMinor ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+            }`}>
+              <FiInfo className="inline w-3 h-3 mr-1" />
+              {tieneEdadCalculada 
+                ? (isMinor ? 'Requiere representante' : 'No requiere representante') 
+                : 'Ingrese nacimiento'}
             </div>
           </div>
         </div>
       </Card>
 
-      {/* SECCIÓN: REPRESENTANTE (solo menores - con animación suave) */}
-      <div 
-        className={`transition-all duration-500 ease-in-out overflow-hidden ${
-          isMinor 
-            ? 'max-h-[1000px] opacity-100 transform translate-y-0' 
-            : 'max-h-0 opacity-0 transform -translate-y-4'
-        }`}
-      >
+      {/* SECCIÓN: REPRESENTANTE (solo menores) */}
+      <div className={`transition-all duration-500 overflow-hidden ${
+          isMinor ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+      }`}>
         {isMinor && (
-          <Card className="p-4 border-2 border-purple-300 bg-gradient-to-br from-purple-50 to-white shadow-lg">
+          <Card className="p-4 border-2 border-purple-300 bg-gradient-to-br from-purple-50 to-white mt-4">
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-purple-200">
               <div className="flex items-center space-x-2">
                 <div className="p-2 bg-purple-100 rounded-full">
@@ -623,22 +670,16 @@ const InscripcionForm = ({
                 </div>
                 <h3 className="text-lg font-semibold text-purple-900">Datos del Representante Legal</h3>
               </div>
-              <span className="text-xs font-medium text-white bg-purple-600 px-3 py-1 rounded-full animate-pulse">
-                ⚠️ Obligatorio
+              <span className="text-xs font-medium text-white bg-purple-600 px-3 py-1 rounded-full">
+                Obligatorio
               </span>
-            </div>
-            
-            {/* Mensaje informativo */}
-            <div className="mb-4 p-2 bg-purple-100 rounded-md text-sm text-purple-800 flex items-center">
-              <FiInfo className="w-4 h-4 mr-2 flex-shrink-0" />
-              <span>El representante legal será responsable del atleta menor de edad.</span>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {renderInput('nombre_representante', 'Nombre Completo', 'text', true)}
-              {renderInput('cedula_representante', 'Cédula', 'text', true)}
+              {renderInput('cedula_representante', 'Cédula', 'text', true, { maxLength: 10 })}
               {renderInput('parentesco_representante', 'Parentesco', 'text', true)}
-              {renderInput('telefono_representante', 'Teléfono', 'tel', true)}
+              {renderInput('telefono_representante', 'Teléfono', 'tel', true, { maxLength: 10 })}
               {renderInput('correo_representante', 'Correo Electrónico', 'email')}
               {renderInput('ocupacion_representante', 'Ocupación')}
               <div className="md:col-span-2 lg:col-span-3">
@@ -650,12 +691,17 @@ const InscripcionForm = ({
       </div>
 
       {/* BOTONES */}
-      <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200 sticky bottom-0 bg-white py-4">
+      <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200 sticky bottom-0 bg-white py-4 z-10">
         <Button type="button" variant="secondary" onClick={onCancel} disabled={loading || isSubmitting}>
           <FiX className="w-4 h-4 mr-2" />
           Cancelar
         </Button>
-        <Button type="submit" variant="primary" disabled={loading || isSubmitting} loading={loading || isSubmitting}>
+        <Button 
+          type="submit" 
+          variant="primary" 
+          disabled={loading || isSubmitting || !!cedulaError || isCheckingCedula} 
+          loading={loading || isSubmitting}
+        >
           {(loading || isSubmitting) ? (
             <><FiLoader className="w-4 h-4 mr-2 animate-spin" />Guardando...</>
           ) : (

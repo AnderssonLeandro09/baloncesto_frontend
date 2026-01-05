@@ -47,7 +47,7 @@ const InscripcionService = {
    */
   getById: async (id) => {
     const validId = validateId(id, 'inscripción')
-    const response = await apiClient.get(`${ENDPOINTS.INSCRIPCIONES}/${validId}`)
+    const response = await apiClient.get(`${ENDPOINTS.INSCRIPCIONES}${validId}/`)
     return response.data
   },
 
@@ -85,7 +85,7 @@ const InscripcionService = {
       throw new Error('Datos de actualización inválidos')
     }
     // El payload ya viene estructurado desde el formulario
-    const response = await apiClient.put(`${ENDPOINTS.INSCRIPCIONES}/${validId}`, data)
+    const response = await apiClient.put(`${ENDPOINTS.INSCRIPCIONES}${validId}/`, data)
     return response.data
   },
 
@@ -96,7 +96,7 @@ const InscripcionService = {
    */
   delete: async (id) => {
     const validId = validateId(id, 'inscripción')
-    const response = await apiClient.delete(`${ENDPOINTS.INSCRIPCIONES}/${validId}`)
+    const response = await apiClient.delete(`${ENDPOINTS.INSCRIPCIONES}${validId}/`)
     return response.data
   },
 
@@ -109,7 +109,7 @@ const InscripcionService = {
   toggleEstado: async (id) => {
     const validId = validateId(id, 'inscripción')
     // IMPORTANTE: Enviar body vacío {} explícitamente para evitar problemas con Django
-    const response = await apiClient.post(`${ENDPOINTS.INSCRIPCIONES}/${validId}/cambiar-estado/`, {})
+    const response = await apiClient.post(`${ENDPOINTS.INSCRIPCIONES}${validId}/cambiar-estado/`, {})
     return response.data
   },
 

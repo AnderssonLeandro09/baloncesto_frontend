@@ -1,6 +1,6 @@
 ﻿import { useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
-import { FiEye, FiEyeOff, FiMail, FiLock } from 'react-icons/fi'
+import { FiEye, FiEyeOff, FiMail, FiLock, FiArrowLeft, FiAlertCircle } from 'react-icons/fi'
 import { useForm } from '../hooks'
 import { authService } from '../api'
 import { useAuthStore } from '../stores'
@@ -16,22 +16,54 @@ const LoginPage = () => {
     return <Navigate to="/dashboard" />
   }
 
-  const { values, errors, handleChange } = useForm(
+  const { values, errors, handleChange, setErrors } = useForm(
     { email: '', password: '' },
     (vals) => {
       const errors = {}
-      if (!vals.email) errors.email = 'El email es requerido'
-      if (!vals.password) errors.password = 'La contraseña es requerida'
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+      if (!vals.email) {
+        errors.email = 'El email es requerido'
+      } else if (!emailRegex.test(vals.email)) {
+        errors.email = 'Ingrese un correo electrónico válido'
+      }
+
+      if (!vals.password) {
+        errors.password = 'La contraseña es requerida'
+      } else if (vals.password.length < 4) {
+        errors.password = 'La contraseña es muy corta'
+      }
+      
       return errors
     }
   )
+
+  const validate = () => {
+    const newErrors = {}
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+    if (!values.email) {
+      newErrors.email = 'El email es requerido'
+    } else if (!emailRegex.test(values.email)) {
+      newErrors.email = 'Ingrese un correo electrónico válido'
+    }
+
+    if (!values.password) {
+      newErrors.password = 'La contraseña es requerida'
+    } else if (values.password.length < 4) {
+      newErrors.password = 'La contraseña es muy corta'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
 
   const onLogin = async (e) => {
     e.preventDefault()
     
     // Validar antes de enviar
-    if (!values.email || !values.password) {
-      toast.error('Por favor completa todos los campos')
+    if (!validate()) {
+      toast.error('Por favor verifique los campos del formulario')
       return
     }
 
@@ -42,7 +74,24 @@ const LoginPage = () => {
       toast.success(`¡Bienvenido, ${data.user.name}!`)
       navigate('/dashboard')
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Error al iniciar sesión')
+      console.error('Login error:', error)
+      const errorMsg = error.response?.data?.error
+      
+      if (errorMsg) {
+        // Mapear errores del backend a campos específicos
+        if (errorMsg.toLowerCase().includes('contraseña') || errorMsg.toLowerCase().includes('clave')) {
+          setErrors({ password: errorMsg })
+        } else if (errorMsg.toLowerCase().includes('correo') || errorMsg.toLowerCase().includes('email') || errorMsg.toLowerCase().includes('cuenta')) {
+          setErrors({ email: errorMsg })
+        } else {
+          // Si no es específico, mostrar toast
+          toast.error(errorMsg)
+        }
+      } else if (error.message === 'Network Error' || !error.response) {
+        toast.error('No se pudo conectar con el servidor. Verifique su conexión.')
+      } else {
+        toast.error('Ocurrió un error inesperado al iniciar sesión')
+      }
     } finally {
       setLoading(false)
     }
@@ -51,7 +100,17 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen flex overflow-hidden">
       {/* Panel Izquierdo - Formulario de Login */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white relative">
+        
+        {/* Botón Regresar */}
+        <button
+          onClick={() => navigate('/')}
+          className="absolute top-6 left-6 flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors font-medium"
+        >
+          <FiArrowLeft className="w-5 h-5" />
+          <span>Volver al inicio</span>
+        </button>
+
         <div className="w-full max-w-md">
           {/* Logo y Título */}
           <div className="mb-8">
@@ -85,21 +144,28 @@ const LoginPage = () => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiMail className="h-5 w-5 text-gray-400" />
+                  <FiMail className={`h-5 w-5 ${errors.email ? 'text-red-500' : 'text-gray-400'}`} />
                 </div>
                 <input
                   type="email"
                   name="email"
                   value={values.email}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 transition-colors ${
+                    errors.email 
+                      ? 'border-red-500 focus:ring-red-200 focus:border-red-500' 
+                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
                   placeholder="jugador@example.com"
                   required
                   disabled={loading}
                 />
               </div>
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded-md animate-fadeIn">
+                  <FiAlertCircle className="flex-shrink-0" />
+                  <span>{errors.email}</span>
+                </div>
               )}
             </div>
 
@@ -110,14 +176,18 @@ const LoginPage = () => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiLock className="h-5 w-5 text-gray-400" />
+                  <FiLock className={`h-5 w-5 ${errors.password ? 'text-red-500' : 'text-gray-400'}`} />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={values.password}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className={`block w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 transition-colors ${
+                    errors.password 
+                      ? 'border-red-500 focus:ring-red-200 focus:border-red-500' 
+                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
                   placeholder="••••••••"
                   required
                   disabled={loading}
@@ -136,7 +206,10 @@ const LoginPage = () => {
                 </button>
               </div>
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded-md animate-fadeIn">
+                  <FiAlertCircle className="flex-shrink-0" />
+                  <span>{errors.password}</span>
+                </div>
               )}
             </div>
 

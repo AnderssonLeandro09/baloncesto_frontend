@@ -1,8 +1,10 @@
+import React from 'react';
+
 /**
  * Componente Input reutilizable
  */
 
-const Input = ({
+const Input = React.forwardRef(({
   label,
   name,
   type = 'text',
@@ -16,7 +18,7 @@ const Input = ({
   disabled = false,
   className = '',
   ...props
-}) => {
+}, ref) => {
   const hasError = touched && error
 
   return (
@@ -28,6 +30,7 @@ const Input = ({
         </label>
       )}
       <input
+        ref={ref}
         id={name}
         name={name}
         type={type}
@@ -49,6 +52,8 @@ const Input = ({
       )}
     </div>
   )
-}
+});
+
+Input.displayName = 'Input';
 
 export default Input

@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiEye, FiEdit2, FiToggleLeft, FiToggleRight, FiMail, FiPrinter } from 'react-icons/fi';
 import { Table, Button } from '../common';
+import { clasificarIMC, clasificarIndiceCormico } from '../../utils/validacionesAntropometricas';
 
 const PruebaAntropometricaTable = ({
   data,
@@ -35,15 +36,8 @@ const PruebaAntropometricaTable = ({
     return 'N/A';
   };
 
-  // Clasificación del IMC
-  const getIMCClassification = (imc) => {
-    const value = parseFloat(imc);
-    if (isNaN(value) || value === 0) return { color: 'bg-gray-100 text-gray-800' };
-    if (value < 18.5) return { color: 'bg-blue-100 text-blue-800' };
-    if (value < 25) return { color: 'bg-green-100 text-green-800' };
-    if (value < 30) return { color: 'bg-yellow-100 text-yellow-800' };
-    return { color: 'bg-red-100 text-red-800' };
-  };
+  // Auxiliar para badge combinando bg + text
+  const badgeClass = (bg, text) => `px-2 py-1 text-xs font-medium rounded-full ${bg} ${text}`;
 
   const columns = [
     {
@@ -83,20 +77,34 @@ const PruebaAntropometricaTable = ({
       title: 'IMC',
       render: (_, row) => {
         const imc = row.indice_masa_corporal || row.imc || 0;
-        const classification = getIMCClassification(imc);
+        const cls = clasificarIMC(parseFloat(imc));
         return (
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${classification.color}`}>
-            {parseFloat(imc).toFixed(2)}
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className={badgeClass(cls.bg, cls.color)}>
+              {parseFloat(imc).toFixed(2)}
+            </span>
+            <span className={badgeClass(cls.bg, cls.color)}>
+              {cls.text}
+            </span>
+          </div>
         );
       },
     },
     {
       key: 'indice_cormico',
       title: 'Índ. Córmico',
-      render: (value) => (
-        <span className="text-gray-700">{value ? parseFloat(value).toFixed(2) : 'N/A'}</span>
-      ),
+      render: (value) => {
+        const val = value ? parseFloat(value) : 0;
+        const cls = clasificarIndiceCormico(val);
+        return (
+          <div className="flex items-center space-x-2">
+            <span className="text-gray-700">{val ? val.toFixed(2) : 'N/A'}</span>
+            {val ? (
+              <span className={badgeClass(cls.bg, cls.color)}>{cls.text}</span>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       key: 'estado',

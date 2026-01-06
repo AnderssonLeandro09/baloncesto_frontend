@@ -4,42 +4,131 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Input, Button } from '../common';
 import apiClient from '../../api/apiClient';
+import {
+  VALIDACIONES_ANTROPOMETRICAS,
+  MENSAJES_ERROR,
+  toDecimal,
+  getFechaMinima,
+  getFechaMaxima,
+} from '../../utils/validacionesAntropometricas';
 
-const positiveNumber = (label) =>
-  yup
+// Constantes de validación importadas desde utilidades
+const PESO_MIN = VALIDACIONES_ANTROPOMETRICAS.PESO.MIN;
+const PESO_MAX = VALIDACIONES_ANTROPOMETRICAS.PESO.MAX;
+const ESTATURA_MIN = VALIDACIONES_ANTROPOMETRICAS.ESTATURA.MIN;
+const ESTATURA_MAX = VALIDACIONES_ANTROPOMETRICAS.ESTATURA.MAX;
+const ALTURA_SENTADO_MIN = VALIDACIONES_ANTROPOMETRICAS.ALTURA_SENTADO.MIN;
+const ALTURA_SENTADO_MAX = VALIDACIONES_ANTROPOMETRICAS.ALTURA_SENTADO.MAX;
+const ALTURA_SENTADO_RATIO_MIN = VALIDACIONES_ANTROPOMETRICAS.ALTURA_SENTADO.RATIO_MIN;
+const ENVERGADURA_MIN = VALIDACIONES_ANTROPOMETRICAS.ENVERGADURA.MIN;
+const ENVERGADURA_MAX = VALIDACIONES_ANTROPOMETRICAS.ENVERGADURA.MAX;
+const ENVERGADURA_RATIO_MIN = VALIDACIONES_ANTROPOMETRICAS.ENVERGADURA.RATIO_MIN;
+const ENVERGADURA_RATIO_MAX = VALIDACIONES_ANTROPOMETRICAS.ENVERGADURA.RATIO_MAX;
+const FECHA_MAX_ANTIGUEDAD_ANOS = VALIDACIONES_ANTROPOMETRICAS.FECHA.MAX_ANTIGUEDAD_ANOS;
+
+const schema = yup.object({
+  atleta: yup
     .number()
-    .typeError(`${label} es requerido`)
+    .typeError(MENSAJES_ERROR.ATLETA.REQUERIDO)
     .transform((value, originalValue) => {
       return originalValue === '' || originalValue === null ? undefined : value;
     })
-    .moreThan(0, `${label} debe ser mayor a 0`)
-    .required(`${label} es requerido`);
-
-const schema = yup.object({
-  atleta: positiveNumber('El atleta'),
+    .positive(MENSAJES_ERROR.ATLETA.REQUERIDO)
+    .required(MENSAJES_ERROR.ATLETA.REQUERIDO),
+  
   fecha_registro: yup
     .string()
-    .required('La fecha de registro es requerida'),
-  peso: positiveNumber('El peso'),
-  estatura: positiveNumber('La estatura'),
-  altura_sentado: positiveNumber('La altura sentado').test(
-    'altura-sentado-validation',
-    'La altura sentado no puede ser mayor que la estatura',
-    function (value) {
-      const estatura = this.parent.estatura;
-      if (typeof value !== 'number' || typeof estatura !== 'number') return true;
-      return value <= estatura;
-    }
-  ),
-  envergadura: positiveNumber('La envergadura').test(
-    'envergadura-validation',
-    'La envergadura debe ser al menos la estatura menos 0.05 m',
-    function (value) {
-      const estatura = this.parent.estatura;
-      if (typeof value !== 'number' || typeof estatura !== 'number') return true;
-      return value >= estatura - 0.05;
-    }
-  ),
+    .required(MENSAJES_ERROR.FECHA.REQUERIDA)
+    .test(
+      'fecha-no-futura',
+      MENSAJES_ERROR.FECHA.FUTURA,
+      function (value) {
+        if (!value) return true;
+        const fecha = new Date(value);
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        return fecha <= hoy;
+      }
+    )
+    .test(
+      'fecha-no-antigua',
+      MENSAJES_ERROR.FECHA.ANTIGUA(getFechaMinima()),
+      function (value) {
+        if (!value) return true;
+        const fecha = new Date(value);
+        const fechaMinima = new Date(getFechaMinima());
+        return fecha >= fechaMinima;
+      }
+    ),
+  
+  peso: yup
+    .number()
+    .typeError(MENSAJES_ERROR.PESO.REQUERIDO)
+    .transform(toDecimal)
+    .required(MENSAJES_ERROR.PESO.REQUERIDO)
+    .test('peso-positivo', MENSAJES_ERROR.PESO.POSITIVO, value => value > 0)
+    .test('peso-minimo', MENSAJES_ERROR.PESO.MINIMO, value => value >= PESO_MIN)
+    .test('peso-maximo', MENSAJES_ERROR.PESO.MAXIMO, value => value <= PESO_MAX),
+  
+  estatura: yup
+    .number()
+    .typeError(MENSAJES_ERROR.ESTATURA.REQUERIDO)
+    .transform(toDecimal)
+    .required(MENSAJES_ERROR.ESTATURA.REQUERIDO)
+    .test('estatura-positiva', MENSAJES_ERROR.ESTATURA.POSITIVA, value => value > 0)
+    .test('estatura-minima', MENSAJES_ERROR.ESTATURA.MINIMA, value => value >= ESTATURA_MIN)
+    .test('estatura-maxima', MENSAJES_ERROR.ESTATURA.MAXIMA, value => value <= ESTATURA_MAX),
+  
+  altura_sentado: yup
+    .number()
+    .typeError(MENSAJES_ERROR.ALTURA_SENTADO.REQUERIDO)
+    .transform(toDecimal)
+    .required(MENSAJES_ERROR.ALTURA_SENTADO.REQUERIDO)
+    .test('altura-sentado-positiva', MENSAJES_ERROR.ALTURA_SENTADO.POSITIVA, value => value > 0)
+    .test('altura-sentado-minima', MENSAJES_ERROR.ALTURA_SENTADO.MINIMA, value => value >= ALTURA_SENTADO_MIN)
+    .test('altura-sentado-maxima', MENSAJES_ERROR.ALTURA_SENTADO.MAXIMA, value => value <= ALTURA_SENTADO_MAX)
+    .test(
+      'altura-sentado-menor-estatura',
+      MENSAJES_ERROR.ALTURA_SENTADO.MAYOR_ESTATURA,
+      function (value) {
+        const estatura = this.parent.estatura;
+        if (typeof value !== 'number' || typeof estatura !== 'number') return true;
+        return value <= estatura;
+      }
+    )
+    .test(
+      'altura-sentado-proporcion',
+      MENSAJES_ERROR.ALTURA_SENTADO.PROPORCION,
+      function (value) {
+        const estatura = this.parent.estatura;
+        if (typeof value !== 'number' || typeof estatura !== 'number') return true;
+        return value >= estatura * ALTURA_SENTADO_RATIO_MIN;
+      }
+    ),
+  
+  envergadura: yup
+    .number()
+    .typeError(MENSAJES_ERROR.ENVERGADURA.REQUERIDO)
+    .transform(toDecimal)
+    .required(MENSAJES_ERROR.ENVERGADURA.REQUERIDO)
+    .test('envergadura-positiva', MENSAJES_ERROR.ENVERGADURA.POSITIVA, value => value > 0)
+    .test('envergadura-minima', MENSAJES_ERROR.ENVERGADURA.MINIMA, value => value >= ENVERGADURA_MIN)
+    .test('envergadura-maxima', MENSAJES_ERROR.ENVERGADURA.MAXIMA, value => value <= ENVERGADURA_MAX)
+    .test(
+      'envergadura-ratio',
+      function (value) {
+        const estatura = this.parent.estatura;
+        if (typeof value !== 'number' || typeof estatura !== 'number') return true;
+        const ratio = value / estatura;
+        if (ratio < ENVERGADURA_RATIO_MIN || ratio > ENVERGADURA_RATIO_MAX) {
+          return this.createError({
+            message: MENSAJES_ERROR.ENVERGADURA.RATIO(ratio)
+          });
+        }
+        return true;
+      }
+    ),
+  
   observaciones: yup.string().optional().nullable(),
 });
 
@@ -58,6 +147,7 @@ const PruebaAntropometricaForm = ({
     formState: { errors, touchedFields, isValid },
     watch,
     reset,
+    setValue,
   } = useForm({
     resolver: yupResolver(schema),
     mode: 'onChange',
@@ -91,16 +181,50 @@ const PruebaAntropometricaForm = ({
       : '0.00';
 
   // Clasificación del IMC
+  // Clasificación IMC (3 categorías: Insuficiente, Normal, Sobrepeso)
   const getIMCClassification = (imcValue) => {
     const value = parseFloat(imcValue);
-    if (isNaN(value) || value === 0) return { text: '-', color: 'text-gray-500' };
-    if (value < 18.5) return { text: 'Bajo peso', color: 'text-blue-600' };
-    if (value < 25) return { text: 'Normal', color: 'text-green-600' };
-    if (value < 30) return { text: 'Sobrepeso', color: 'text-yellow-600' };
-    return { text: 'Obesidad', color: 'text-red-600' };
+    if (isNaN(value) || value === 0) return { text: '-', color: 'text-gray-700', bg: 'bg-gray-200' };
+    if (value < 18.5) return { text: 'Insuficiente', color: 'text-blue-700', bg: 'bg-blue-100' };
+    if (value < 25) return { text: 'Normal', color: 'text-green-700', bg: 'bg-green-100' };
+    return { text: 'Sobrepeso', color: 'text-yellow-700', bg: 'bg-yellow-100' };
   };
 
   const imcClassification = getIMCClassification(imc);
+
+  // Clasificación del Índice Córmico (Braquicórmico, Mesocórmico, Macrosquélico)
+  const getCormicoClassification = (cormicoValue) => {
+    const value = parseFloat(cormicoValue);
+    if (isNaN(value) || value === 0) return { text: '-', color: 'text-gray-700', bg: 'bg-gray-200', detalle: '' };
+    if (value < 50) return { text: 'Braquicórmico', color: 'text-blue-700', bg: 'bg-blue-100', detalle: '(tronco corto)' };
+    if (value <= 55) return { text: 'Mesocórmico', color: 'text-green-700', bg: 'bg-green-100', detalle: '(tronco intermedio)' };
+    return { text: 'Macrosquélico', color: 'text-yellow-700', bg: 'bg-yellow-100', detalle: '(tronco largo)' };
+  };
+
+  const cormicoClassification = getCormicoClassification(indiceCormico);
+
+  // Observaciones automáticas: insertar categorías calculadas si el usuario no ha escrito nada
+  const observacionesActuales = watch('observaciones');
+  const [autoObs, setAutoObs] = useState('');
+
+  useEffect(() => {
+    const partes = [];
+    if (imcClassification.text && imcClassification.text !== '-') {
+      partes.push(`IMC: ${imcClassification.text}`);
+    }
+    if (cormicoClassification.text && cormicoClassification.text !== '-') {
+      const detalle = cormicoClassification.detalle ? ` ${cormicoClassification.detalle}` : '';
+      partes.push(`Índice córmico: ${cormicoClassification.text}${detalle}`);
+    }
+    const nuevaAutoObs = partes.join(' | ');
+    setAutoObs(nuevaAutoObs);
+
+    // Solo sobrescribir si el usuario no ha escrito o si coincide con la anterior sugerencia
+    if (!observacionesActuales || observacionesActuales === '' || observacionesActuales === autoObs) {
+      setValue('observaciones', nuevaAutoObs, { shouldValidate: false, shouldDirty: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imcClassification.text, cormicoClassification.text, cormicoClassification.detalle]);
 
   useEffect(() => {
     const fetchAtletas = async () => {
@@ -214,74 +338,105 @@ const PruebaAntropometricaForm = ({
           )}
         </div>
 
-        <Input
-          label="Fecha de Registro"
-          type="date"
-          {...register('fecha_registro')}
-          error={errors.fecha_registro?.message}
-          touched={touchedFields.fecha_registro}
-          required
-        />
+        <div>
+          <Input
+            label="Fecha de Registro"
+            type="date"
+            min={getFechaMinima()}
+            max={getFechaMaxima()}
+            {...register('fecha_registro')}
+            error={errors.fecha_registro?.message}
+            touched={touchedFields.fecha_registro}
+            required
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            No puede ser futura ni anterior a {FECHA_MAX_ANTIGUEDAD_ANOS} años
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Peso (kg)"
-          type="number"
-          step="0.01"
-          min="0.01"
-          placeholder="Ej: 70.5"
-          {...register('peso', { 
-            setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
-          })}
-          error={errors.peso?.message}
-          touched={touchedFields.peso}
-          required
-        />
+        <div>
+          <Input
+            label="Peso (kg)"
+            type="number"
+            step="0.01"
+            min={PESO_MIN}
+            max={PESO_MAX}
+            placeholder={`Entre ${PESO_MIN} y ${PESO_MAX} kg`}
+            {...register('peso', { 
+              setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
+            })}
+            error={errors.peso?.message}
+            touched={touchedFields.peso}
+            required
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Rango válido: {PESO_MIN} - {PESO_MAX} kg
+          </p>
+        </div>
 
-        <Input
-          label="Estatura (m)"
-          type="number"
-          step="0.01"
-          min="0.01"
-          placeholder="Ej: 1.75"
-          {...register('estatura', { 
-            setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
-          })}
-          error={errors.estatura?.message}
-          touched={touchedFields.estatura}
-          required
-        />
+        <div>
+          <Input
+            label="Estatura (m)"
+            type="number"
+            step="0.01"
+            min={ESTATURA_MIN}
+            max={ESTATURA_MAX}
+            placeholder={`Entre ${ESTATURA_MIN} y ${ESTATURA_MAX} m`}
+            {...register('estatura', { 
+              setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
+            })}
+            error={errors.estatura?.message}
+            touched={touchedFields.estatura}
+            required
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Rango válido: {ESTATURA_MIN} - {ESTATURA_MAX} m
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Altura Sentado (m)"
-          type="number"
-          step="0.01"
-          min="0.01"
-          placeholder="Ej: 0.90"
-          {...register('altura_sentado', { 
-            setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
-          })}
-          error={errors.altura_sentado?.message}
-          touched={touchedFields.altura_sentado}
-          required
-        />
+        <div>
+          <Input
+            label="Altura Sentado (m)"
+            type="number"
+            step="0.01"
+            min={ALTURA_SENTADO_MIN}
+            max={ALTURA_SENTADO_MAX}
+            placeholder={`Entre ${ALTURA_SENTADO_MIN} y ${ALTURA_SENTADO_MAX} m`}
+            {...register('altura_sentado', { 
+              setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
+            })}
+            error={errors.altura_sentado?.message}
+            touched={touchedFields.altura_sentado}
+            required
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Rango válido: {ALTURA_SENTADO_MIN} - {ALTURA_SENTADO_MAX} m (no mayor que estatura)
+          </p>
+        </div>
 
-        <Input
-          label="Envergadura (m)"
-          type="number"
-          step="0.01"
-          min="0.01"
-          placeholder="Ej: 1.80"
-          {...register('envergadura', { 
-            setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
-          })}
-          error={errors.envergadura?.message}
-          touched={touchedFields.envergadura}
-          required
-        />
+        <div>
+          <Input
+            label="Envergadura (m)"
+            type="number"
+            step="0.01"
+            min={ENVERGADURA_MIN}
+            max={ENVERGADURA_MAX}
+            placeholder={`Entre ${ENVERGADURA_MIN} y ${ENVERGADURA_MAX} m`}
+            {...register('envergadura', { 
+              setValueAs: (v) => v === '' || v === null ? '' : parseFloat(v) 
+            })}
+            error={errors.envergadura?.message}
+            touched={touchedFields.envergadura}
+            required
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Rango válido: {ENVERGADURA_MIN} - {ENVERGADURA_MAX} m
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -296,7 +451,7 @@ const PruebaAntropometricaForm = ({
               disabled
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
             />
-            <span className={`text-sm font-medium ${imcClassification.color}`}>
+            <span className={`text-xs font-medium px-2 py-1 rounded-full ${imcClassification.bg} ${imcClassification.color}`}>
               {imcClassification.text}
             </span>
           </div>
@@ -312,6 +467,12 @@ const PruebaAntropometricaForm = ({
             disabled
             className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
           />
+          <div className="mt-2 flex items-center space-x-2">
+            <span className={`text-xs font-medium px-2 py-1 rounded-full ${cormicoClassification.bg} ${cormicoClassification.color}`}>
+              {cormicoClassification.text}
+            </span>
+            <span className="text-xs text-gray-600">{cormicoClassification.detalle}</span>
+          </div>
           <p className="text-xs text-gray-500 mt-1">Valores normales: 50-55</p>
         </div>
       </div>

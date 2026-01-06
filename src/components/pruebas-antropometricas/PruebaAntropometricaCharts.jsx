@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Select, Card } from '../common';
 import usePruebaAntropometricaStore from '../../stores/pruebaAntropometricaStore';
 import apiClient from '../../api/apiClient';
+import { clasificarIMC, clasificarIndiceCormico } from '../../utils/validacionesAntropometricas';
 
 const PruebaAntropometricaCharts = () => {
   const [selectedAtleta, setSelectedAtleta] = useState(null);
@@ -58,15 +59,25 @@ const PruebaAntropometricaCharts = () => {
         .filter(p => p.estado)
         .sort((a, b) => new Date(a.fecha_registro).getTime() - new Date(b.fecha_registro).getTime());
 
-      const data = sortedPruebas.map(prueba => ({
+      const data = sortedPruebas.map(prueba => {
+        const imcVal = parseFloat(prueba.indice_masa_corporal || prueba.imc || 0);
+        const cormVal = parseFloat(prueba.indice_cormico || 0);
+        const imcCls = clasificarIMC(imcVal);
+        const cormCls = clasificarIndiceCormico(cormVal);
+        return {
         fecha: new Date(prueba.fecha_registro).toLocaleDateString('es-ES'),
-        imc: parseFloat(prueba.indice_masa_corporal || prueba.imc || 0),
+        imc: imcVal,
+        imcCategoria: imcCls.text,
+        imcColor: imcCls.hexColor,
         peso: parseFloat(prueba.peso || 0),
         estatura: parseFloat(prueba.estatura || 0),
         alturaSentado: parseFloat(prueba.altura_sentado || 0),
         envergadura: parseFloat(prueba.envergadura || 0),
-        indiceCormico: parseFloat(prueba.indice_cormico || 0),
-      }));
+        indiceCormico: cormVal,
+        cormicoCategoria: cormCls.text,
+        cormicoColor: cormCls.hexColor,
+      };
+      });
 
       setChartData(data);
     } catch (error) {
@@ -137,6 +148,16 @@ const PruebaAntropometricaCharts = () => {
               </div>
             )}
 
+            {/* Legend de categorías */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#2563eb' }}></span><span className="text-sm text-gray-700">IMC: Insuficiente</span></div>
+              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#16a34a' }}></span><span className="text-sm text-gray-700">IMC: Normal</span></div>
+              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#f59e0b' }}></span><span className="text-sm text-gray-700">IMC: Sobrepeso</span></div>
+              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#2563eb' }}></span><span className="text-sm text-gray-700">Córmico: Braquicórmico</span></div>
+              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#16a34a' }}></span><span className="text-sm text-gray-700">Córmico: Mesocórmico</span></div>
+              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#f59e0b' }}></span><span className="text-sm text-gray-700">Córmico: Macrosquélico</span></div>
+            </div>
+
             {/* Gráfica de IMC */}
             <div className="bg-white p-4 rounded-lg border border-gray-200">
               <h3 className="text-lg font-semibold mb-4 text-gray-800">Evolución del IMC</h3>
@@ -150,12 +171,21 @@ const PruebaAntropometricaCharts = () => {
                     formatter={(value) => [value.toFixed(2), '']}
                   />
                   <Legend />
-                  <Area type="monotone" dataKey="imc" fill="#8884d8" fillOpacity={0.2} stroke="#8884d8" name="IMC" />
-                  <Line type="monotone" dataKey="imc" stroke="#8884d8" strokeWidth={2} dot={{ fill: '#8884d8', strokeWidth: 2 }} name="IMC" />
+                  <Area type="monotone" dataKey="imc" fill="#8884d8" fillOpacity={0.15} stroke="#8884d8" name="IMC" />
+                  <Line
+                    type="monotone"
+                    dataKey="imc"
+                    stroke="#8884d8"
+                    strokeWidth={2}
+                    dot={({ cx, cy, payload }) => (
+                      <circle cx={cx} cy={cy} r={4} fill={payload.imcColor || '#8884d8'} strokeWidth={2} />
+                    )}
+                    name="IMC"
+                  />
                 </ComposedChart>
               </ResponsiveContainer>
               <p className="text-xs text-gray-500 mt-2">
-                IMC Normal: 18.5 - 24.9 | Sobrepeso: 25 - 29.9 | Obesidad: ≥30
+                IMC Insuficiente: &lt; 18.5 | Normal: 18.5 - 24.9 | Sobrepeso: ≥ 25
               </p>
             </div>
 
@@ -212,11 +242,20 @@ const PruebaAntropometricaCharts = () => {
                     formatter={(value) => [value.toFixed(2), 'Índice Córmico']}
                   />
                   <Legend />
-                  <Line type="monotone" dataKey="indiceCormico" stroke="#e91e63" strokeWidth={2} dot={{ fill: '#e91e63', strokeWidth: 2 }} name="Índice Córmico" />
+                  <Line
+                    type="monotone"
+                    dataKey="indiceCormico"
+                    stroke="#e91e63"
+                    strokeWidth={2}
+                    dot={({ cx, cy, payload }) => (
+                      <circle cx={cx} cy={cy} r={4} fill={payload.cormicoColor || '#e91e63'} strokeWidth={2} />
+                    )}
+                    name="Índice Córmico"
+                  />
                 </LineChart>
               </ResponsiveContainer>
               <p className="text-xs text-gray-500 mt-2">
-                Índice Córmico = (Altura Sentado / Estatura) × 100 | Valores normales: 50-55
+                Índice Córmico = (Altura Sentado / Estatura) × 100 | Categorías: Braquicórmico (&lt;50), Mesocórmico (50-55), Macrosquélico (&gt;55)
               </p>
             </div>
           </div>

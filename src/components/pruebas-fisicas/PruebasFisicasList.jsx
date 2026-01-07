@@ -12,21 +12,28 @@ const sanitizeForDisplay = (text) => {
     .replace(/'/g, '&#39;')
 }
 
-// Clasificación de rendimiento según tipo de prueba
+// Clasificación de rendimiento según tipo de prueba (basado en baloncesto)
 const clasificarRendimiento = (tipo, resultado) => {
   if (tipo === 'FUERZA') {
-    if (resultado >= 250) return { nivel: 'Excelente', color: 'bg-green-100 text-green-700' }
-    if (resultado >= 220) return { nivel: 'Muy Bueno', color: 'bg-blue-100 text-blue-700' }
-    if (resultado >= 190) return { nivel: 'Bueno', color: 'bg-cyan-100 text-cyan-700' }
-    if (resultado >= 160) return { nivel: 'Regular', color: 'bg-yellow-100 text-yellow-700' }
+    // Salto horizontal (cm): Excelente 260-300, Bueno 220-250, Regular <220
+    if (resultado >= 260) return { nivel: 'Excelente', color: 'bg-green-100 text-green-700' }
+    if (resultado >= 220) return { nivel: 'Bueno', color: 'bg-blue-100 text-blue-700' }
+    if (resultado >= 190) return { nivel: 'Regular', color: 'bg-yellow-100 text-yellow-700' }
     return { nivel: 'A mejorar', color: 'bg-red-100 text-red-700' }
-  } else {
-    if (resultado <= 4.5) return { nivel: 'Excelente', color: 'bg-green-100 text-green-700' }
-    if (resultado <= 5.0) return { nivel: 'Muy Bueno', color: 'bg-blue-100 text-blue-700' }
-    if (resultado <= 5.5) return { nivel: 'Bueno', color: 'bg-cyan-100 text-cyan-700' }
-    if (resultado <= 6.0) return { nivel: 'Regular', color: 'bg-yellow-100 text-yellow-700' }
+  } else if (tipo === 'VELOCIDAD') {
+    // 30m velocidad (seg): Excelente 3.8-4.1, Bueno 4.2-4.4, Regular >4.6
+    if (resultado <= 4.1) return { nivel: 'Excelente', color: 'bg-green-100 text-green-700' }
+    if (resultado <= 4.4) return { nivel: 'Bueno', color: 'bg-blue-100 text-blue-700' }
+    if (resultado <= 4.6) return { nivel: 'Regular', color: 'bg-yellow-100 text-yellow-700' }
+    return { nivel: 'A mejorar', color: 'bg-red-100 text-red-700' }
+  } else if (tipo === 'AGILIDAD') {
+    // Zigzag (seg): Excelente ≤15.0, Bueno 15.1-16.0, Regular >16.5
+    if (resultado <= 15.0) return { nivel: 'Excelente', color: 'bg-green-100 text-green-700' }
+    if (resultado <= 16.0) return { nivel: 'Bueno', color: 'bg-blue-100 text-blue-700' }
+    if (resultado <= 16.5) return { nivel: 'Regular', color: 'bg-yellow-100 text-yellow-700' }
     return { nivel: 'A mejorar', color: 'bg-red-100 text-red-700' }
   }
+  return { nivel: 'N/A', color: 'bg-gray-100 text-gray-700' }
 }
 
 const PruebasFisicasList = ({ pruebas, loading, onEdit, onViewDetail, onToggleEstado }) => {

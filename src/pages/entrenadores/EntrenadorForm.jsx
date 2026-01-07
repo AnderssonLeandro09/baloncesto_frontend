@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { Modal, Button, Input, Select } from '../../components/common'
 import { useEntrenadorStore } from '../../stores'
 import { useForm } from '../../hooks'
+import { validarDatosEntrenador, validarEspecialidad, validarClubAsignado, MENSAJES_ERROR_ENTRENADOR, VALIDACIONES_ENTRENADOR, TOOLTIPS_ENTRENADOR } from '../../utils/validacionesEntrenador'
 
 const initialValues = {
   identification: '',
@@ -45,8 +46,13 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
       }
     }
     
-    if (!values.especialidad) errors.especialidad = 'La especialidad es obligatoria'
-    if (!values.club_asignado) errors.club_asignado = 'El club asignado es obligatorio'
+    // Validar especialidad y club_asignado con utilidades específicas
+    const errorEspecialidad = validarEspecialidad(values.especialidad)
+    if (errorEspecialidad) errors.especialidad = errorEspecialidad
+    
+    const errorClubAsignado = validarClubAsignado(values.club_asignado)
+    if (errorClubAsignado) errors.club_asignado = errorClubAsignado
+    
     return errors
   }
 
@@ -229,6 +235,10 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
               touched={touched.especialidad}
               required
               placeholder="Ej. Táctica, Preparación Física"
+              minLength={VALIDACIONES_ENTRENADOR.ESPECIALIDAD.MIN_LENGTH}
+              maxLength={VALIDACIONES_ENTRENADOR.ESPECIALIDAD.MAX_LENGTH}
+              title={TOOLTIPS_ENTRENADOR.ESPECIALIDAD}
+              helperText={`Mín: ${VALIDACIONES_ENTRENADOR.ESPECIALIDAD.MIN_LENGTH} | Máx: ${VALIDACIONES_ENTRENADOR.ESPECIALIDAD.MAX_LENGTH} caracteres`}
             />
 
             <Input
@@ -241,6 +251,10 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
               touched={touched.club_asignado}
               required
               placeholder="Ej. Club UNL"
+              minLength={VALIDACIONES_ENTRENADOR.CLUB_ASIGNADO.MIN_LENGTH}
+              maxLength={VALIDACIONES_ENTRENADOR.CLUB_ASIGNADO.MAX_LENGTH}
+              title={TOOLTIPS_ENTRENADOR.CLUB_ASIGNADO}
+              helperText={`Mín: ${VALIDACIONES_ENTRENADOR.CLUB_ASIGNADO.MIN_LENGTH} | Máx: ${VALIDACIONES_ENTRENADOR.CLUB_ASIGNADO.MAX_LENGTH} caracteres`}
             />
           </div>
         </div>

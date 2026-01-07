@@ -33,7 +33,7 @@ const sanitizeText = (text) => {
       return entities[char]
     })
     .trim()
-    .substring(0, 1000) // Limitar longitud
+    .substring(0, 200) // Límite de 200 caracteres
 }
 
 // Función para calcular el semestre automáticamente desde una fecha
@@ -50,45 +50,53 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
   const [atletaSearch, setAtletaSearch] = useState('')
   const [selectedAtletaData, setSelectedAtletaData] = useState(null)
   const [showAtletasList, setShowAtletasList] = useState(false)
+  const [resultadoAlerta, setResultadoAlerta] = useState(null)
 
-  // Validación en tiempo real del campo resultado
+  // Rangos máximos por tipo de prueba (baloncesto)
+  const RANGOS_MAXIMOS = {
+    'FUERZA': 300,      // Salto horizontal: hasta 300 cm
+    'VELOCIDAD': 15,    // 30m velocidad: hasta ~15 seg
+    'AGILIDAD': 25,     // Zigzag: hasta ~25 seg
+  }
+
+  // Validación en tiempo real del campo resultado con alertas mejoradas
   const handleResultadoChange = (e) => {
     const value = e.target.value
     handleChange(e)
     
     if (value) {
       const resultado = parseFloat(value)
+      const tipoActual = values.tipo_prueba
+      const rangoMax = RANGOS_MAXIMOS[tipoActual] || 9999
       
-      if (resultado < 0) {
-        toast.error('No se permiten valores negativos', {
-          duration: 2000,
-          position: 'top-right',
+      if (resultado <= 0) {
+        setResultadoAlerta({
+          tipo: 'error',
+          mensaje: 'No se permiten valores negativos o cero. El resultado debe ser mayor a 0.'
         })
-      } else if (resultado > 9999) {
-        toast.error('Valor demasiado alto (máximo: 9,999)', {
-          duration: 2000,
-          position: 'top-right',
+      } else if (resultado > rangoMax) {
+        setResultadoAlerta({
+          tipo: 'error',
+          mensaje: `El resultado excede el rango máximo permitido: ${rangoMax} ${tipoActual === 'FUERZA' ? 'cm' : 'seg'}`
         })
+      } else {
+        setResultadoAlerta(null)
       }
+    } else {
+      setResultadoAlerta(null)
     }
   }
 
-  // Validación en tiempo real del campo observaciones
+  // Validación en tiempo real del campo observaciones (límite 200) - bloquea si excede
   const handleObservacionesChange = (e) => {
     const value = e.target.value
-    handleChange(e)
     
-    if (value.length > 1000) {
-      toast.error('Las observaciones exceden el límite de 1000 caracteres', {
-        duration: 3000,
-        position: 'top-right',
-      })
-    } else if (value.length > 900) {
-      toast.warning(`Quedan ${1000 - value.length} caracteres disponibles`, {
-        duration: 2000,
-        position: 'top-right',
-      })
+    // Bloquear si excede 200 caracteres
+    if (value.length > 200) {
+      return // No actualiza el valor
     }
+    
+    handleChange(e)
   }
 
   const { values, errors, handleChange, handleSubmit } = useForm(
@@ -126,7 +134,7 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
         })
       }
       
-      // Validaciones de resultado
+      // Validaciones de resultado con rangos específicos por tipo
       if (!vals.resultado) {
         errs.resultado = 'El resultado es requerido'
         toast.error('Debe ingresar el resultado de la prueba', {
@@ -135,6 +143,7 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
         })
       } else {
         const resultado = parseFloat(vals.resultado)
+        const rangoMax = RANGOS_MAXIMOS[vals.tipo_prueba] || 9999
         
         if (isNaN(resultado)) {
           errs.resultado = 'El resultado debe ser un número válido'
@@ -154,29 +163,19 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
             duration: 3000,
             position: 'top-right',
           })
-        } else if (resultado > 9999) {
-          errs.resultado = 'El resultado excede el valor máximo permitido'
-          toast.error('El resultado excede el valor máximo (9,999)', {
+        } else if (resultado > rangoMax) {
+          errs.resultado = `El resultado excede el rango máximo para ${vals.tipo_prueba}: ${rangoMax}`
+          toast.error(`El resultado excede el rango máximo: ${rangoMax}`, {
             duration: 3000,
-            position: 'top-right',
-          })
-        } else if (vals.tipo_prueba === 'FUERZA' && resultado > 500) {
-          toast.warning('Verifique el resultado: valores muy altos para salto horizontal', {
-            duration: 4000,
-            position: 'top-right',
-          })
-        } else if ((vals.tipo_prueba === 'VELOCIDAD' || vals.tipo_prueba === 'AGILIDAD') && resultado > 60) {
-          toast.warning('Verifique el resultado: tiempo muy alto para esta prueba', {
-            duration: 4000,
             position: 'top-right',
           })
         }
       }
       
-      // Validar longitud de observaciones
-      if (vals.observaciones && vals.observaciones.length > 1000) {
-        errs.observaciones = 'Las observaciones no pueden exceder 1000 caracteres'
-        toast.error('Las observaciones son demasiado largas (máximo 1000 caracteres)', {
+      // Validar longitud de observaciones (límite 200 caracteres)
+      if (vals.observaciones && vals.observaciones.length > 200) {
+        errs.observaciones = 'Las observaciones no pueden exceder 200 caracteres'
+        toast.error('Las observaciones son demasiado largas (máximo 200 caracteres)', {
           duration: 3000,
           position: 'top-right',
         })
@@ -375,24 +374,50 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
         </div>
       </div>
 
-      <Input
-        label="Resultado"
-        name="resultado"
-        type="number"
-        step="0.01"
-        min="0"
-        value={values.resultado}
-        onChange={handleResultadoChange}
-        error={errors.resultado}
-        placeholder="Ej: 10.5"
-        disabled={loading}
-      />
+      <div className="flex flex-col space-y-1">
+        <label className="text-sm font-medium text-gray-700">Resultado</label>
+        <input
+          name="resultado"
+          type="number"
+          step="0.01"
+          min="0.01"
+          max={RANGOS_MAXIMOS[values.tipo_prueba] || 9999}
+          value={values.resultado}
+          onChange={handleResultadoChange}
+          disabled={loading}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
+            errors.resultado ? 'border-red-500 bg-red-50' : 'border-gray-300'
+          }`}
+          placeholder={`Ej: ${values.tipo_prueba === 'FUERZA' ? '250 (cm)' : '4.5 (seg)'}`}
+        />
+        {/* Indicador de rango permitido */}
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Mínimo: 0.01</span>
+          <span>Máximo: {RANGOS_MAXIMOS[values.tipo_prueba] || 'N/A'} {values.tipo_prueba === 'FUERZA' ? 'cm' : 'seg'}</span>
+        </div>
+        {errors.resultado && (
+          <div className="flex items-center gap-1 text-red-500 text-xs bg-red-50 px-2 py-1 rounded">
+            <span></span>
+            <span>{errors.resultado}</span>
+          </div>
+        )}
+        {/* Alerta visual de validación en tiempo real */}
+        {resultadoAlerta && (
+          <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-md mt-1 ${
+            resultadoAlerta.tipo === 'error' 
+              ? 'bg-red-100 text-red-700 border border-red-300' 
+              : 'bg-green-100 text-green-700 border border-green-300'
+          }`}>
+            <span>{resultadoAlerta.mensaje}</span>
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-col space-y-1">
         <label className="text-sm font-medium text-gray-700">
           Observaciones 
-          <span className="text-xs text-gray-500 ml-2">
-            ({values.observaciones?.length || 0}/1000)
+          <span className={`text-xs ml-2 ${(values.observaciones?.length || 0) > 180 ? 'text-amber-500 font-medium' : 'text-gray-500'}`}>
+            ({values.observaciones?.length || 0}/200)
           </span>
         </label>
         <textarea
@@ -400,10 +425,17 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
           value={values.observaciones}
           onChange={handleObservacionesChange}
           disabled={loading}
-          maxLength={1000}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] disabled:bg-gray-100 disabled:cursor-not-allowed"
-          placeholder="Detalles adicionales de la prueba..."
+          maxLength={200}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] disabled:bg-gray-100 disabled:cursor-not-allowed ${
+            (values.observaciones?.length || 0) >= 200 ? 'border-red-300 bg-red-50' : 'border-gray-300'
+          }`}
+          placeholder="Detalles adicionales de la prueba (máx. 200 caracteres)..."
         />
+        {(values.observaciones?.length || 0) >= 180 && (
+          <span className="text-xs text-amber-600">
+            {200 - (values.observaciones?.length || 0)} caracteres restantes
+          </span>
+        )}
         {errors.observaciones && (
           <span className="text-xs text-red-500">{errors.observaciones}</span>
         )}

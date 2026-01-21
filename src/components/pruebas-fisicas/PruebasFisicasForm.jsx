@@ -72,12 +72,12 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
       if (resultado <= 0) {
         setResultadoAlerta({
           tipo: 'error',
-          mensaje: 'No se permiten valores negativos o cero. El resultado debe ser mayor a 0.'
+          mensaje: 'No se permiten valores negativos o cero. El resultado debe ser mayor a 0'
         })
       } else if (resultado > rangoMax) {
         setResultadoAlerta({
           tipo: 'error',
-          mensaje: `El resultado excede el rango máximo permitido: ${rangoMax} ${tipoActual === 'FUERZA' ? 'cm' : 'seg'}`
+          mensaje: `El resultado excede el rango máximo permitido para ${tipoActual}: ${rangoMax}`
         })
       } else {
         setResultadoAlerta(null)
@@ -151,21 +151,15 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
             duration: 3000,
             position: 'top-right',
           })
-        } else if (resultado < 0) {
-          errs.resultado = 'El resultado no puede ser negativo'
-          toast.error('No se permiten valores negativos', {
-            duration: 3000,
-            position: 'top-right',
-          })
-        } else if (resultado === 0) {
-          errs.resultado = 'El resultado debe ser mayor a 0'
-          toast.error('El resultado debe ser mayor a cero', {
+        } else if (resultado <= 0) {
+          errs.resultado = 'No se permiten valores negativos o cero. El resultado debe ser mayor a 0'
+          toast.error('No se permiten valores negativos o cero', {
             duration: 3000,
             position: 'top-right',
           })
         } else if (resultado > rangoMax) {
-          errs.resultado = `El resultado excede el rango máximo para ${vals.tipo_prueba}: ${rangoMax}`
-          toast.error(`El resultado excede el rango máximo: ${rangoMax}`, {
+          errs.resultado = `El resultado excede el rango máximo permitido para ${vals.tipo_prueba}: ${rangoMax}`
+          toast.error(`El resultado excede el rango máximo permitido: ${rangoMax}`, {
             duration: 3000,
             position: 'top-right',
           })
@@ -175,7 +169,7 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
       // Validar longitud de observaciones (límite 200 caracteres)
       if (vals.observaciones && vals.observaciones.length > 200) {
         errs.observaciones = 'Las observaciones no pueden exceder 200 caracteres'
-        toast.error('Las observaciones son demasiado largas (máximo 200 caracteres)', {
+        toast.error('Las observaciones no pueden exceder 200 caracteres', {
           duration: 3000,
           position: 'top-right',
         })
@@ -186,10 +180,6 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
   )
 
   const handleFormSubmit = (vals) => {
-    // Obtener fecha local en formato YYYY-MM-DD
-    const today = new Date()
-    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-    
     // Transformar los datos al formato que espera el backend
     const payload = {
       atleta_id: parseInt(vals.atleta),
@@ -197,9 +187,8 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
       resultado: parseFloat(vals.resultado),
       observaciones: sanitizeText(vals.observaciones || ''),
       estado: Boolean(vals.estado),
-      fecha_registro: localDate
     }
-    
+
     onSubmit(payload)
   }
 

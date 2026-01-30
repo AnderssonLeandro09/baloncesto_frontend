@@ -2,7 +2,7 @@
  * Componente Header - Barra superior
  */
 
-import { FiBell, FiUser, FiSettings, FiLogOut } from 'react-icons/fi'
+import { FiUser, FiLogOut } from 'react-icons/fi'
 import { useAuthStore } from '../stores'
 import { useNavigate } from 'react-router-dom'
 
@@ -27,31 +27,15 @@ const Header = () => {
 
         {/* Acciones del header */}
         <div className="flex items-center space-x-4">
-          {/* Notificaciones */}
-          <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-            <FiBell className="w-5 h-5" />
-          </button>
-          
-          {/* Configuración */}
-          <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-            <FiSettings className="w-5 h-5" />
-          </button>
-          
           {/* Usuario */}
           <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
-            <button 
-              onClick={() => navigate('/dashboard/perfil')}
-              className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg transition-colors text-left group"
-              title="Ver mi perfil"
-            >
-              <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center group-hover:bg-primary-200 transition-colors">
-                <FiUser className="w-4 h-4 text-primary-600" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-700 group-hover:text-primary-700 transition-colors">{user?.name || 'Usuario'}</span>
-                <span className="text-xs text-gray-500 capitalize">{user?.role?.toLowerCase().replace('_', ' ')}</span>
-              </div>
-            </button>
+            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+              <FiUser className="w-4 h-4 text-primary-600" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-700">{user?.name || 'Usuario'}</span>
+              <span className="text-xs text-gray-500 capitalize">{user?.role?.toLowerCase().replace('_', ' ')}</span>
+            </div>
             <button 
               onClick={handleLogout}
               className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"

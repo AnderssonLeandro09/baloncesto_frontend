@@ -1,63 +1,32 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { Input, Select, Button } from '../common'
+import { Select, Button } from '../common'
 import { useForm } from '../../hooks'
 import { PruebaFisicaService } from '../../api'
 import toast from 'react-hot-toast'
-import { FiSearch, FiUser, FiCheck } from 'react-icons/fi'
+import { FiSearch, FiUser, FiAlertCircle } from 'react-icons/fi'
+import {
+  TIPOS_PRUEBA,
+  RANGOS_MAXIMOS,
+  UNIDADES_POR_TIPO,
+  LIMITES,
+  sanitizeText,
+  validarFormularioPruebaFisica,
+  MENSAJES_ERROR,
+} from '../../utils/validacionesPruebasFisicas'
 
 const TIPO_PRUEBA_OPTIONS = [
-  { value: 'FUERZA', label: 'Fuerza (Salto Horizontal)' },
-  { value: 'VELOCIDAD', label: 'Velocidad' },
-  { value: 'AGILIDAD', label: 'Agilidad (ZIGZAG)' },
+  { value: TIPOS_PRUEBA.FUERZA, label: 'Fuerza (Salto Horizontal)' },
+  { value: TIPOS_PRUEBA.VELOCIDAD, label: 'Velocidad' },
+  { value: TIPOS_PRUEBA.AGILIDAD, label: 'Agilidad (ZIGZAG)' },
 ]
 
-// Mapeo de unidades por tipo (basado en pruebas de baloncesto)
-const UNIDADES_POR_TIPO = {
-  'FUERZA': 'Centímetros (cm)',  // Salto horizontal
-  'VELOCIDAD': 'Segundos (seg)',  // 30 metros
-  'AGILIDAD': 'Segundos (seg)'  // Zigzag
-}
-
-// Función para sanitizar texto y prevenir XSS
-const sanitizeText = (text) => {
-  if (!text) return ''
-  return String(text)
-    .replace(/[<>"'&]/g, (char) => {
-      const entities = {
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;',
-        '&': '&amp;'
-      }
-      return entities[char]
-    })
-    .trim()
-    .substring(0, 200) // Límite de 200 caracteres
-}
-
-// Función para calcular el semestre automáticamente desde una fecha
-const calcularSemestre = (fecha = new Date()) => {
-  const year = fecha.getFullYear()
-  const month = fecha.getMonth() + 1 // getMonth() es 0-indexed
-  const periodo = month <= 6 ? 1 : 2
-  return `${year}-${periodo}`
-}
-
-const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
+const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading, serverErrors = {} }) => {
   const [atletas, setAtletas] = useState([])
   const [loadingAtletas, setLoadingAtletas] = useState(false)
   const [atletaSearch, setAtletaSearch] = useState('')
   const [selectedAtletaData, setSelectedAtletaData] = useState(null)
   const [showAtletasList, setShowAtletasList] = useState(false)
   const [resultadoAlerta, setResultadoAlerta] = useState(null)
-
-  // Rangos máximos por tipo de prueba (baloncesto)
-  const RANGOS_MAXIMOS = {
-    'FUERZA': 300,      // Salto horizontal: hasta 300 cm
-    'VELOCIDAD': 15,    // 30m velocidad: hasta ~15 seg
-    'AGILIDAD': 25,     // Zigzag: hasta ~25 seg
-  }
 
   // Validación en tiempo real del campo resultado con alertas mejoradas
   const handleResultadoChange = (e) => {
@@ -72,12 +41,12 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
       if (resultado <= 0) {
         setResultadoAlerta({
           tipo: 'error',
-          mensaje: 'No se permiten valores negativos o cero. El resultado debe ser mayor a 0.'
+          mensaje: MENSAJES_ERROR.RESULTADO_NEGATIVO
         })
       } else if (resultado > rangoMax) {
         setResultadoAlerta({
           tipo: 'error',
-          mensaje: `El resultado excede el rango máximo permitido: ${rangoMax} ${tipoActual === 'FUERZA' ? 'cm' : 'seg'}`
+          mensaje: MENSAJES_ERROR.RESULTADO_EXCEDE_RANGO(tipoActual, rangoMax)
         })
       } else {
         setResultadoAlerta(null)
@@ -91,105 +60,47 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
   const handleObservacionesChange = (e) => {
     const value = e.target.value
     
-    // Bloquear si excede 200 caracteres
-    if (value.length > 200) {
+    // Bloquear si excede límite de caracteres
+    if (value.length > LIMITES.MAX_OBSERVACIONES) {
       return // No actualiza el valor
     }
     
     handleChange(e)
   }
 
-  const { values, errors, handleChange, handleSubmit } = useForm(
+  const { values, errors, setErrors, handleChange, handleSubmit } = useForm(
     {
       atleta: initialData?.atleta || '',
-      tipo_prueba: initialData?.tipo_prueba || 'FUERZA',
+      tipo_prueba: initialData?.tipo_prueba || TIPOS_PRUEBA.FUERZA,
       resultado: initialData?.resultado || '',
       observaciones: initialData?.observaciones || '',
       estado: initialData?.estado ?? true,
     },
     (vals) => {
-      const errs = {}
+      // Usar validaciones centralizadas
+      const validationErrors = validarFormularioPruebaFisica(vals, !!initialData)
       
-      // Validación de atleta
-      if (!vals.atleta) {
-        errs.atleta = 'Debe seleccionar un atleta'
-        toast.error('Debe seleccionar un atleta', {
+      // Mostrar toasts solo para errores que impiden el envío
+      if (Object.keys(validationErrors).length > 0) {
+        const firstError = Object.values(validationErrors)[0]
+        toast.error(firstError, {
           duration: 3000,
           position: 'top-right',
         })
       }
       
-      // Validación de tipo de prueba
-      if (!vals.tipo_prueba) {
-        errs.tipo_prueba = 'Debe seleccionar un tipo de prueba'
-        toast.error('Debe seleccionar un tipo de prueba', {
-          duration: 3000,
-          position: 'top-right',
-        })
-      } else if (!['FUERZA', 'VELOCIDAD', 'AGILIDAD'].includes(vals.tipo_prueba)) {
-        errs.tipo_prueba = 'Tipo de prueba no válido'
-        toast.error('El tipo de prueba seleccionado no es válido', {
-          duration: 3000,
-          position: 'top-right',
-        })
-      }
-      
-      // Validaciones de resultado con rangos específicos por tipo
-      if (!vals.resultado) {
-        errs.resultado = 'El resultado es requerido'
-        toast.error('Debe ingresar el resultado de la prueba', {
-          duration: 3000,
-          position: 'top-right',
-        })
-      } else {
-        const resultado = parseFloat(vals.resultado)
-        const rangoMax = RANGOS_MAXIMOS[vals.tipo_prueba] || 9999
-        
-        if (isNaN(resultado)) {
-          errs.resultado = 'El resultado debe ser un número válido'
-          toast.error('El resultado debe ser un número válido', {
-            duration: 3000,
-            position: 'top-right',
-          })
-        } else if (resultado < 0) {
-          errs.resultado = 'El resultado no puede ser negativo'
-          toast.error('No se permiten valores negativos', {
-            duration: 3000,
-            position: 'top-right',
-          })
-        } else if (resultado === 0) {
-          errs.resultado = 'El resultado debe ser mayor a 0'
-          toast.error('El resultado debe ser mayor a cero', {
-            duration: 3000,
-            position: 'top-right',
-          })
-        } else if (resultado > rangoMax) {
-          errs.resultado = `El resultado excede el rango máximo para ${vals.tipo_prueba}: ${rangoMax}`
-          toast.error(`El resultado excede el rango máximo: ${rangoMax}`, {
-            duration: 3000,
-            position: 'top-right',
-          })
-        }
-      }
-      
-      // Validar longitud de observaciones (límite 200 caracteres)
-      if (vals.observaciones && vals.observaciones.length > 200) {
-        errs.observaciones = 'Las observaciones no pueden exceder 200 caracteres'
-        toast.error('Las observaciones son demasiado largas (máximo 200 caracteres)', {
-          duration: 3000,
-          position: 'top-right',
-        })
-      }
-      
-      return errs
+      return validationErrors
     }
   )
 
+  // Sincronizar errores del servidor con el formulario
+  useEffect(() => {
+    if (serverErrors && Object.keys(serverErrors).length > 0) {
+      setErrors(prev => ({ ...prev, ...serverErrors }))
+    }
+  }, [serverErrors, setErrors])
+
   const handleFormSubmit = (vals) => {
-    // Obtener fecha local en formato YYYY-MM-DD
-    const today = new Date()
-    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-    
     // Transformar los datos al formato que espera el backend
     const payload = {
       atleta_id: parseInt(vals.atleta),
@@ -197,9 +108,8 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
       resultado: parseFloat(vals.resultado),
       observaciones: sanitizeText(vals.observaciones || ''),
       estado: Boolean(vals.estado),
-      fecha_registro: localDate
     }
-    
+
     onSubmit(payload)
   }
 
@@ -209,7 +119,7 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
       try {
         const data = await PruebaFisicaService.getAtletasHabilitados()
         // Map athletes to options for Select component
-        const options = data.map(a => ({
+        const options = (data || []).map(a => ({
           value: a.id,
           label: a.persona ? `${a.persona.nombre} ${a.persona.apellido} (${a.persona.identificacion})` : `Atleta ${a.id}`
         }))
@@ -225,14 +135,15 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
         }
         
         if (options.length === 0) {
-          toast.info('No hay atletas habilitados disponibles', {
+          toast('No hay atletas habilitados disponibles', {
+            icon: 'ℹ️',
             duration: 4000,
             position: 'top-right',
           })
         }
       } catch (error) {
         console.error('Error fetching atletas:', error)
-        toast.error('Error al cargar la lista de atletas', {
+        toast.error(error.message || 'No se pudo cargar la lista de atletas', {
           duration: 4000,
           position: 'top-right',
         })
@@ -242,7 +153,7 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
     }
 
     fetchAtletas()
-  }, [])
+  }, [initialData?.atleta])
 
   // Filtrar atletas según búsqueda
   const atletasFiltrados = useMemo(() => {

@@ -3,10 +3,16 @@ import { FiPlus, FiSearch, FiPrinter, FiBarChart2, FiList, FiEye, FiX, FiFilter,
 import toast from 'react-hot-toast'
 import { usePruebaFisicaStore, useAuthStore } from '../../stores'
 import { useModal } from '../../hooks'
-import { Card, Button, Modal, ConfirmDialog } from '../../components/common'
+import { Card, Button, Modal, ConfirmDialog, Pagination } from '../../components/common'
 import PruebasFisicasList from '../../components/pruebas-fisicas/PruebasFisicasList'
 import PruebasFisicasForm from '../../components/pruebas-fisicas/PruebasFisicasForm'
 import PruebasFisicasCharts from '../../components/pruebas-fisicas/PruebasFisicasCharts'
+import { 
+  getTipoLabel, 
+  getTipoColor, 
+  MENSAJES_EXITO 
+} from '../../utils/validacionesPruebasFisicas'
+import { paginateData, PAGINATION_CONFIG } from '../../utils/pagination'
 
 // Vista de tarjetas por atleta
 const AtletaCards = ({ pruebas, onViewAtleta }) => {
@@ -40,24 +46,6 @@ const AtletaCards = ({ pruebas, onViewAtleta }) => {
         <p>No hay atletas con pruebas registradas</p>
       </div>
     )
-  }
-
-  const getTipoColor = (tipo) => {
-    const colors = {
-      'FUERZA': 'bg-blue-100 text-blue-700',
-      'VELOCIDAD': 'bg-green-100 text-green-700',
-      'AGILIDAD': 'bg-amber-100 text-amber-700'
-    }
-    return colors[tipo] || 'bg-gray-100 text-gray-700'
-  }
-
-  const getTipoLabel = (tipo) => {
-    const labels = {
-      'FUERZA': 'Fuerza (Salto Horizontal)',
-      'VELOCIDAD': 'Velocidad',
-      'AGILIDAD': 'Agilidad (ZigZag)'
-    }
-    return labels[tipo] || tipo
   }
 
   return (
@@ -114,15 +102,6 @@ const AtletaDetailModal = ({ isOpen, onClose, atleta, pruebas }) => {
     }
     pruebasPorTipo[p.tipo_prueba].push(p)
   })
-
-  const getTipoLabel = (tipo) => {
-    const labels = {
-      'FUERZA': 'Fuerza (Salto Horizontal)',
-      'VELOCIDAD': 'Velocidad',
-      'AGILIDAD': 'Agilidad (ZigZag)'
-    }
-    return labels[tipo] || tipo
-  }
 
   const handlePrint = () => {
     const printContent = document.getElementById('atleta-detail-print')
@@ -252,11 +231,17 @@ const AtletaDetailModal = ({ isOpen, onClose, atleta, pruebas }) => {
 const PruebasFisicasPage = () => {
   const { 
     pruebas, 
-    loading, 
+    loading,
+    error,
+    fieldErrors,
+    pagination,
     fetchPruebas, 
     createPrueba, 
     updatePrueba, 
-    toggleEstado
+    toggleEstado,
+    setCurrentPage,
+    setPageSize,
+    clearErrors,
   } = usePruebaFisicaStore()
   
   const { user } = useAuthStore()
@@ -284,14 +269,15 @@ const PruebasFisicasPage = () => {
       try {
         await fetchPruebas()
         if (!hasLoadedRef.current) {
-          toast.success('Datos cargados correctamente', {
+          toast.success(MENSAJES_EXITO.CARGAR, {
             duration: 2000,
             position: 'top-right',
           })
           hasLoadedRef.current = true
         }
-      } catch (error) {
-        toast.error('Error al cargar las pruebas físicas', {
+      } catch (err) {
+        // El error ya se maneja en el store con mensaje amigable
+        toast.error(error || 'No se pudieron cargar las pruebas físicas', {
           duration: 4000,
           position: 'top-right',
         })
@@ -300,26 +286,38 @@ const PruebasFisicasPage = () => {
     loadPruebas()
   }, [fetchPruebas])
 
+  // Mostrar errores del store
+  useEffect(() => {
+    if (error && hasLoadedRef.current) {
+      toast.error(error, {
+        duration: 4000,
+        position: 'top-right',
+      })
+    }
+  }, [error])
+
   const handleCreate = () => {
     if (!canCreate) {
-      toast.error('No tiene permisos para crear pruebas físicas', {
+      toast.error('No tienes permisos para crear pruebas físicas', {
         duration: 4000,
         position: 'top-right',
       })
       return
     }
+    clearErrors()
     setSelectedPrueba(null)
     formModal.open()
   }
 
   const handleEdit = (prueba) => {
     if (!canCreate) {
-      toast.error('No tiene permisos para editar pruebas físicas', {
+      toast.error('No tienes permisos para editar pruebas físicas', {
         duration: 4000,
         position: 'top-right',
       })
       return
     }
+    clearErrors()
     setSelectedPrueba(prueba)
     formModal.open()
   }
@@ -336,7 +334,7 @@ const PruebasFisicasPage = () => {
 
   const handleToggleClick = (prueba) => {
     if (!canCreate) {
-      toast.error('No tiene permisos para modificar el estado', {
+      toast.error('No tienes permisos para modificar el estado', {
         duration: 4000,
         position: 'top-right',
       })
@@ -359,14 +357,15 @@ const PruebasFisicasPage = () => {
         const result = await updatePrueba(selectedPrueba.id, updatePayload)
         
         if (result.success) {
-          toast.success('Prueba física actualizada exitosamente', {
+          toast.success(result.message || MENSAJES_EXITO.ACTUALIZAR, {
             duration: 3000,
             position: 'top-right',
           })
           await fetchPruebas()
           formModal.close()
         } else {
-          toast.error(`${result.error || 'Error al actualizar la prueba'}`, {
+          // El error ya viene con mensaje amigable del store
+          toast.error(result.error, {
             duration: 4000,
             position: 'top-right',
           })
@@ -375,22 +374,23 @@ const PruebasFisicasPage = () => {
         const result = await createPrueba(values)
         
         if (result.success) {
-          toast.success('Prueba física creada exitosamente', {
+          toast.success(result.message || MENSAJES_EXITO.CREAR, {
             duration: 3000,
             position: 'top-right',
           })
           await fetchPruebas()
           formModal.close()
         } else {
-          toast.error(`${result.error || 'Error al crear la prueba'}`, {
+          // El error ya viene con mensaje amigable del store
+          toast.error(result.error, {
             duration: 4000,
             position: 'top-right',
           })
         }
       }
-    } catch (error) {
-      console.error('Error al guardar prueba:', error)
-      toast.error('Error inesperado al guardar la prueba física', {
+    } catch (err) {
+      console.error('Error al guardar prueba:', err)
+      toast.error('Ocurrió un error inesperado. Por favor, intenta de nuevo', {
         duration: 4000,
         position: 'top-right',
       })
@@ -404,22 +404,22 @@ const PruebasFisicasPage = () => {
       const result = await toggleEstado(pruebaToDelete.id)
       
       if (result.success) {
-        toast.success(
-          pruebaToDelete.estado 
-            ? 'Prueba física desactivada' 
-            : 'Prueba física activada',
+        toast.success(result.message || (pruebaToDelete.estado ? MENSAJES_EXITO.DESACTIVAR : MENSAJES_EXITO.ACTIVAR), 
           { duration: 3000, position: 'top-right' }
         )
         await fetchPruebas()
         deleteModal.close()
       } else {
-        toast.error(result.error || 'Error al cambiar el estado', {
+        toast.error(result.error, {
           duration: 4000,
           position: 'top-right',
         })
       }
-    } catch (error) {
-      toast.error('Error inesperado', { duration: 4000, position: 'top-right' })
+    } catch (err) {
+      toast.error('Ocurrió un error inesperado. Por favor, intenta de nuevo', { 
+        duration: 4000, 
+        position: 'top-right' 
+      })
     }
   }
 
@@ -461,6 +461,18 @@ const PruebasFisicasPage = () => {
       return true
     })
   }, [pruebas, searchTerm, semestreFilter, tipoFilter, estadoFilter])
+
+  // Paginación de datos filtrados
+  const paginatedResult = useMemo(() => {
+    return paginateData(filteredPruebas, pagination.currentPage, pagination.pageSize)
+  }, [filteredPruebas, pagination.currentPage, pagination.pageSize])
+
+  // Resetear página cuando cambian filtros
+  useEffect(() => {
+    if (pagination.currentPage > 1 && paginatedResult.pagination.totalPages < pagination.currentPage) {
+      setCurrentPage(1)
+    }
+  }, [filteredPruebas.length, pagination.currentPage, paginatedResult.pagination.totalPages, setCurrentPage])
 
   // Estadísticas rápidas
   const stats = useMemo(() => {
@@ -552,15 +564,6 @@ const PruebasFisicasPage = () => {
     `)
     printWindow.document.close()
     printWindow.print()
-  }
-
-  const getTipoLabel = (tipo) => {
-    const labels = {
-      'FUERZA': 'Fuerza (Salto Horizontal)',
-      'VELOCIDAD': 'Velocidad',
-      'AGILIDAD': 'Agilidad (ZigZag)'
-    }
-    return labels[tipo] || tipo
   }
 
   return (
@@ -745,12 +748,25 @@ const PruebasFisicasPage = () => {
       {viewMode === 'tabla' && (
         <Card>
           <PruebasFisicasList 
-            pruebas={filteredPruebas}
+            pruebas={paginatedResult.data}
             loading={loading}
             onEdit={handleEdit}
             onToggleEstado={handleToggleClick}
             onViewDetail={handleViewDetail}
           />
+          
+          {/* Paginación */}
+          {filteredPruebas.length > 0 && (
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={paginatedResult.pagination.totalPages}
+              pageSize={pagination.pageSize}
+              totalItems={paginatedResult.pagination.totalItems}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              showPageSizeSelector={true}
+            />
+          )}
         </Card>
       )}
 
@@ -781,6 +797,7 @@ const PruebasFisicasPage = () => {
           onSubmit={handleFormSubmit}
           onCancel={formModal.close}
           loading={loading}
+          serverErrors={fieldErrors}
         />
       </Modal>
 

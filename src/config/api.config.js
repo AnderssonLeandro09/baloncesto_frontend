@@ -28,13 +28,16 @@ export const ENDPOINTS = {
   GRUPOS_ATLETAS: '/grupos-atletas',
   
   // Inscripciones
-  INSCRIPCIONES: '/inscripciones',
+  INSCRIPCIONES: '/inscripciones/',
   
   // Pruebas Antropométricas
   PRUEBAS_ANTROPOMETRICAS: '/pruebas-antropometricas',
   
   // Pruebas Físicas
   PRUEBAS_FISICAS: '/pruebas-fisicas',
+
+  // Perfil
+  PROFILE: '/profile',
 }
 
 // Configuración de timeout para peticiones (desde variable de entorno)

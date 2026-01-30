@@ -30,7 +30,7 @@ const PruebaAntropometricaService = {
    * @param {Object} data - Datos de la prueba
    */
   create: async (data) => {
-    const response = await apiClient.post(ENDPOINTS.PRUEBAS_ANTROPOMETRICAS, data)
+    const response = await apiClient.post(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/`, data)
     return response.data
   },
 
@@ -58,7 +58,26 @@ const PruebaAntropometricaService = {
    * @param {number} atletaId - ID del atleta
    */
   getByAtleta: async (atletaId) => {
-    const response = await apiClient.get(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/atleta/${atletaId}`)
+    const response = await apiClient.get(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/atleta/${atletaId}/`)
+    return response.data
+  },
+
+  /**
+   * Cambiar estado de una prueba
+   * @param {number} id - ID de la prueba
+   */
+  toggleEstado: async (id) => {
+    const response = await apiClient.patch(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/${id}/toggle-estado/`)
+    return response.data
+  },
+
+  /**
+   * Compartir reporte por email
+   * @param {number} id - ID de la prueba
+   * @param {Object} data - Datos del reporte (email, etc.)
+   */
+  shareReport: async (id, data) => {
+    const response = await apiClient.post(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/${id}/share-report/`, data)
     return response.data
   },
 }

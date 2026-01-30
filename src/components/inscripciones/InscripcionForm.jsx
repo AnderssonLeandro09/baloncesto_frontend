@@ -106,6 +106,7 @@ const InscripcionForm = ({
     fecha_nacimiento: '',
     edad: '',
     sexo: '',
+    sexo_otro: '', // Campo para texto personalizado cuando sexo = 'O'
     tipo_sangre: '',
     alergias: '',
     enfermedades: '',
@@ -140,6 +141,7 @@ const InscripcionForm = ({
         fecha_nacimiento: inscripcion?.atleta?.fecha_nacimiento || '',
         edad: inscripcion?.atleta?.edad || '',
         sexo: inscripcion?.atleta?.sexo || '',
+        sexo_otro: inscripcion?.atleta?.sexo_otro || '',
         tipo_sangre: inscripcion?.atleta?.tipo_sangre || '',
         alergias: inscripcion?.atleta?.alergias || '',
         enfermedades: inscripcion?.atleta?.enfermedades || '',
@@ -207,15 +209,45 @@ const InscripcionForm = ({
     return () => clearTimeout(timeoutId)
   }, [formData.identification, inscripcion])
 
-  // Manejar cambios en los campos
+  // ============================================================================
+  // REGEX DE VALIDACIÓN - Bloqueo de caracteres no permitidos
+  // ============================================================================
+  const REGEX_SOLO_LETRAS = /^[a-zA-ZñÑáéíóúÁÉÍÓÚüÜ\s]*$/  // Solo letras, acentos y espacios
+  const REGEX_SOLO_NUMEROS = /^[0-9]*$/                      // Solo dígitos
+
+  // Manejar cambios en los campos con validación estricta
   const handleChange = (e) => {
     const { name, value } = e.target
     let updates = { [name]: value }
 
-    // REGLA: Restricción estricta de solo números
+    // ========== VALIDACIÓN: SOLO LETRAS (Nombres, Apellidos, Parentesco) ==========
+    const textOnlyFields = ['firts_name', 'last_name', 'nombre_representante', 'parentesco_representante']
+    if (textOnlyFields.includes(name)) {
+      // Si el valor NO cumple el regex, NO actualizar (bloquear tecla)
+      if (!REGEX_SOLO_LETRAS.test(value)) {
+        return // Bloquea la entrada - no actualiza el estado
+      }
+    }
+
+    // ========== VALIDACIÓN: SOLO NÚMEROS (Cédula, Teléfono) ==========
     const numericFields = ['identification', 'phono', 'cedula_representante', 'telefono_representante']
     if (numericFields.includes(name)) {
-      updates[name] = value.replace(/\D/g, '') // Eliminar todo lo que no sea dígito
+      // Si el valor NO cumple el regex, NO actualizar (bloquear tecla)
+      if (!REGEX_SOLO_NUMEROS.test(value)) {
+        return // Bloquea la entrada - no actualiza el estado
+      }
+      // Limitar a 10 caracteres máximo
+      updates[name] = value.slice(0, 10)
+    }
+
+    // REGLA: Limpiar sexo_otro si cambia de "Otro" a otra opción
+    if (name === 'sexo' && value !== 'O') {
+      updates.sexo_otro = ''
+    }
+
+    // REGLA: Limitar sexo_otro a 20 caracteres
+    if (name === 'sexo_otro') {
+      updates[name] = value.slice(0, 20)
     }
     
     // SMART: Auto-calcular edad y tipo
@@ -255,17 +287,28 @@ const InscripcionForm = ({
     const newErrors = {}
     
     // === PERSONA ===
-    if (!formData.firts_name.trim()) newErrors.firts_name = 'El nombre es requerido'
-    if (!formData.last_name.trim()) newErrors.last_name = 'El apellido es requerido'
+    if (!formData.firts_name.trim()) {
+      newErrors.firts_name = 'El nombre es requerido'
+    } else if (formData.firts_name.trim().length < 2) {
+      newErrors.firts_name = 'Mínimo 2 caracteres'
+    }
+    
+    if (!formData.last_name.trim()) {
+      newErrors.last_name = 'El apellido es requerido'
+    } else if (formData.last_name.trim().length < 2) {
+      newErrors.last_name = 'Mínimo 2 caracteres'
+    }
     
     if (!formData.identification.trim()) {
-      newErrors.identification = 'La identificación es requerida'
+      newErrors.identification = 'La cédula es requerida'
+    } else if (formData.identification.trim().length < 10) {
+      newErrors.identification = 'La cédula debe tener 10 dígitos'
     } else if (formData.identification.trim().length !== 10) {
       newErrors.identification = 'Debe tener exactamente 10 dígitos'
     }
     
-    if (formData.phono?.trim() && formData.phono.trim().length !== 10) {
-      newErrors.phono = 'Debe tener exactamente 10 dígitos'
+    if (formData.phono?.trim() && formData.phono.trim().length > 0 && formData.phono.trim().length < 10) {
+      newErrors.phono = 'El teléfono debe tener 10 dígitos'
     }
     
     // === ATLETA ===
@@ -278,25 +321,41 @@ const InscripcionForm = ({
       }
     }
     
-    if (!formData.sexo) newErrors.sexo = 'El sexo es requerido'
+    if (!formData.sexo) {
+      newErrors.sexo = 'El sexo es requerido'
+    } else if (formData.sexo === 'O' && !formData.sexo_otro?.trim()) {
+      newErrors.sexo_otro = 'Especifique el sexo'
+    }
     
     // === INSCRIPCIÓN ===
     if (!formData.fecha_inscripcion) newErrors.fecha_inscripcion = 'Fecha requerida'
     
     // === REPRESENTANTE (Solo menores) ===
     if (isMinor) {
-      if (!formData.nombre_representante?.trim()) newErrors.nombre_representante = 'Requerido para menores'
+      if (!formData.nombre_representante?.trim()) {
+        newErrors.nombre_representante = 'Requerido para menores'
+      } else if (formData.nombre_representante.trim().length < 3) {
+        newErrors.nombre_representante = 'Mínimo 3 caracteres'
+      }
       
       if (!formData.cedula_representante?.trim()) {
         newErrors.cedula_representante = 'Requerido'
+      } else if (formData.cedula_representante.trim().length < 10) {
+        newErrors.cedula_representante = 'La cédula debe tener 10 dígitos'
       } else if (formData.cedula_representante.trim().length !== 10) {
         newErrors.cedula_representante = 'Debe tener 10 dígitos'
       }
       
-      if (!formData.parentesco_representante?.trim()) newErrors.parentesco_representante = 'Requerido'
+      if (!formData.parentesco_representante?.trim()) {
+        newErrors.parentesco_representante = 'Requerido'
+      } else if (formData.parentesco_representante.trim().length < 3) {
+        newErrors.parentesco_representante = 'Mínimo 3 caracteres'
+      }
       
       if (!formData.telefono_representante?.trim()) {
         newErrors.telefono_representante = 'Requerido'
+      } else if (formData.telefono_representante.trim().length < 10) {
+        newErrors.telefono_representante = 'El teléfono debe tener 10 dígitos'
       } else if (formData.telefono_representante.trim().length !== 10) {
         newErrors.telefono_representante = 'Debe tener 10 dígitos'
       }
@@ -336,7 +395,7 @@ const InscripcionForm = ({
         atleta: {
           fecha_nacimiento: formData.fecha_nacimiento,
           edad: parseInt(formData.edad, 10) || 0,
-          sexo: formData.sexo,
+          sexo: formData.sexo === 'O' ? sanitizeInput(formData.sexo_otro) : formData.sexo,
           // Campos opcionales como strings vacíos si no hay dato
           tipo_sangre: formData.tipo_sangre || "",
           alergias: formData.alergias ? sanitizeInput(formData.alergias) : "",
@@ -406,7 +465,7 @@ const InscripcionForm = ({
     }
   }
 
-  // Renderizar inputs
+  // Renderizar inputs - COMPACTO
   const renderInput = (name, label, type = 'text', required = false, props = {}) => (
     <div>
       <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
@@ -419,12 +478,12 @@ const InscripcionForm = ({
         value={formData[name] || ''}
         onChange={handleChange}
         disabled={loading}
-        className={`block w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+        className={`block w-full px-2 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
           errors[name] ? 'border-red-300' : 'border-gray-300'
         } ${props.readOnly ? 'bg-gray-100 text-gray-500' : ''}`}
         {...props}
       />
-      {errors[name] && <p className="mt-1 text-sm text-red-600">{errors[name]}</p>}
+      {errors[name] && <p className="mt-0.5 text-xs text-red-600">{errors[name]}</p>}
     </div>
   )
 
@@ -439,7 +498,7 @@ const InscripcionForm = ({
         value={formData[name] || ''}
         onChange={handleChange}
         disabled={loading}
-        className={`block w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+        className={`block w-full px-2 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
           errors[name] ? 'border-red-300' : 'border-gray-300'
         }`}
       >
@@ -448,7 +507,7 @@ const InscripcionForm = ({
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
-      {errors[name] && <p className="mt-1 text-sm text-red-600">{errors[name]}</p>}
+      {errors[name] && <p className="mt-0.5 text-xs text-red-600">{errors[name]}</p>}
     </div>
   )
 
@@ -462,227 +521,269 @@ const InscripcionForm = ({
         onChange={handleChange}
         disabled={loading}
         rows={rows}
-        className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
     </div>
   )
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+    <form onSubmit={handleSubmit} className="max-h-[75vh] overflow-y-auto px-1">
       {/* ALERTA CRÍTICA: Cédula duplicada - Centrada y prominente */}
       {duplicateError && (
         <div 
-          className="bg-red-100 border-2 border-red-400 rounded-xl p-5 shadow-lg animate-pulse"
-          style={{ width: '95%', margin: '10px auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+          className="bg-red-100 border-2 border-red-400 rounded-xl p-4 shadow-lg animate-pulse mb-4"
         >
           <div className="text-center">
             <div className="flex justify-center mb-2">
-              <FiAlertTriangle className="w-8 h-8 text-red-600" />
+              <FiAlertTriangle className="w-7 h-7 text-red-600" />
             </div>
-            <h4 className="text-lg font-bold text-red-800 mb-1">Cédula ya registrada</h4>
+            <h4 className="text-base font-bold text-red-800 mb-1">Cédula ya registrada</h4>
             <p className="text-sm text-red-700">{duplicateError}</p>
-            <p className="text-xs text-red-500 mt-2">Corrija el número de cédula para continuar.</p>
+            <p className="text-xs text-red-500 mt-1">Corrija el número de cédula para continuar.</p>
           </div>
         </div>
       )}
       
       {/* Error general (otros errores) */}
       {submitError && !duplicateError && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-2 mb-4">
           <FiAlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
           <div className="overflow-hidden break-words w-full">
             <h4 className="text-sm font-medium text-red-800">Error al guardar</h4>
-            <p className="text-sm text-red-600 mt-1">{submitError}</p>
+            <p className="text-sm text-red-600">{submitError}</p>
           </div>
         </div>
       )}
 
-      {/* SECCIÓN: DATOS PERSONALES */}
-      <Card className="p-4">
-        <div className="flex items-center space-x-2 mb-4 pb-2 border-b">
-          <FiUser className="w-5 h-5 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Datos Personales</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {renderInput('firts_name', 'Nombres', 'text', true)}
-          {renderInput('last_name', 'Apellidos', 'text', true)}
-          
-          {/* CÉDULA CON VALIDACIÓN EN TIEMPO REAL */}
-          <div>
-            <label htmlFor="identification" className="block text-sm font-medium text-gray-700 mb-1">
-              Cédula/Identificación <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                id="identification"
-                name="identification"
-                value={formData.identification || ''}
-                onChange={handleChange}
-                disabled={loading}
-                maxLength={10}
-                placeholder="10 dígitos"
-                className={`block w-full px-3 py-2 pr-10 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  cedulaError || errors.identification 
-                    ? 'border-red-400 bg-red-50' 
-                    : cedulaValid && formData.identification?.length === 10
-                      ? 'border-green-400 bg-green-50'
-                      : 'border-gray-300'
-                }`}
-              />
-              {/* Indicador de estado */}
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                {isCheckingCedula && (
-                  <FiLoader className="w-4 h-4 text-blue-500 animate-spin" />
-                )}
-                {!isCheckingCedula && cedulaError && (
-                  <FiAlertCircle className="w-4 h-4 text-red-500" />
-                )}
-                {!isCheckingCedula && cedulaValid && formData.identification?.length === 10 && (
-                  <FiCheckCircle className="w-4 h-4 text-green-500" />
-                )}
-              </div>
-            </div>
-            {/* Mensaje de ayuda/error */}
-            {cedulaError ? (
-              <p className="mt-1 text-sm text-red-600 font-medium">{cedulaError}</p>
-            ) : errors.identification ? (
-              <p className="mt-1 text-sm text-red-600">{errors.identification}</p>
-            ) : isCheckingCedula ? (
-              <p className="mt-1 text-sm text-blue-600">Verificando disponibilidad...</p>
-            ) : cedulaValid && formData.identification?.length === 10 ? (
-              <p className="mt-1 text-sm text-green-600">✓ Cédula disponible</p>
-            ) : (
-              <p className="mt-1 text-sm text-gray-500">Ingrese los 10 dígitos</p>
-            )}
-          </div>
-          
-          {renderInput('phono', 'Teléfono', 'tel', false, { maxLength: 10, placeholder: '10 dígitos' })}
-          <div className="md:col-span-2">
-            {renderInput('direction', 'Dirección')}
-          </div>
-        </div>
-      </Card>
-
-      {/* SECCIÓN: DATOS DEL ATLETA */}
-      <Card className="p-4">
-        <div className="flex items-center space-x-2 mb-4 pb-2 border-b">
-          <FiHeart className="w-5 h-5 text-red-500" />
-          <h3 className="text-lg font-semibold text-gray-900">Datos del Atleta</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {renderInput('fecha_nacimiento', 'Fecha de Nacimiento', 'date', true)}
-          {/* Edad readOnly y estilizada */}
-          {renderInput('edad', 'Edad', 'number', true, { readOnly: true, className: "bg-gray-100 cursor-not-allowed" })}
-          {renderSelect('sexo', 'Sexo', [
-            { value: 'M', label: 'Masculino' },
-            { value: 'F', label: 'Femenino' },
-            { value: 'O', label: 'Otro' },
-          ], true)}
-          {renderSelect('tipo_sangre', 'Tipo de Sangre', [
-            { value: 'A+', label: 'A+' }, { value: 'A-', label: 'A-' },
-            { value: 'B+', label: 'B+' }, { value: 'B-', label: 'B-' },
-            { value: 'AB+', label: 'AB+' }, { value: 'AB-', label: 'AB-' },
-            { value: 'O+', label: 'O+' }, { value: 'O-', label: 'O-' },
-          ])}
-        </div>
-        <div className="mt-4 pt-4 border-t">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Información Médica</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {renderTextarea('alergias', 'Alergias')}
-            {renderTextarea('enfermedades', 'Enfermedades')}
-            {renderTextarea('medicamentos', 'Medicamentos')}
-            {renderTextarea('lesiones', 'Lesiones')}
-          </div>
-        </div>
-      </Card>
-
-      {/* SECCIÓN: DATOS DE INSCRIPCIÓN */}
-      <Card className="p-4">
-        <div className="flex items-center space-x-2 mb-4 pb-2 border-b">
-          <FiFileText className="w-5 h-5 text-green-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Datos de Inscripción</h3>
-        </div>
+      {/* LAYOUT GRID 2x2 - Filas alineadas */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         
-        {/* ALERTA AMARILLA PARA MENORES DE EDAD */}
-        {isMinor && tieneEdadCalculada && (
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start space-x-3 animate-pulse">
-            <FiAlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+        {/* ===== FILA 1: DATOS PERSONALES + INFO MÉDICA ===== */}
+        {/* SECCIÓN: DATOS PERSONALES */}
+        <Card className="p-3">
+          <div className="flex items-center space-x-2 mb-3 pb-2 border-b">
+            <FiUser className="w-4 h-4 text-blue-600" />
+            <h3 className="text-base font-semibold text-gray-900">Datos Personales</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {renderInput('firts_name', 'Nombres', 'text', true)}
+            {renderInput('last_name', 'Apellidos', 'text', true)}
+            
+            {/* CÉDULA CON VALIDACIÓN EN TIEMPO REAL */}
             <div>
-              <h4 className="text-sm font-semibold text-amber-800">⚠️ Atleta menor de edad detectado</h4>
-              <p className="text-sm text-amber-700 mt-1">
-                Se requiere información del tutor o representante legal.
-              </p>
-            </div>
-          </div>
-        )}
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {renderInput('fecha_inscripcion', 'Fecha de Inscripción', 'date', true, { max: TODAY })}
-          
-          {/* TIPO DE INSCRIPCIÓN - AUTOMÁTICO (Solo lectura) */}
-          <div>
-            <label htmlFor="tipo_inscripcion" className="block text-sm font-medium text-gray-700 mb-1">
-              Tipo de Inscripción <span className="text-red-500">*</span>
-              <span className="ml-2 inline-flex items-center text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                <FiLock className="w-3 h-3 mr-1" />
-                Auto
-              </span>
-            </label>
-            <div className="relative">
-              <select
-                id="tipo_inscripcion"
-                name="tipo_inscripcion"
-                value={formData.tipo_inscripcion}
-                disabled={true} // SIEMPRE deshabilitado
-                className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-700 cursor-not-allowed"
-              >
-                <option value={TIPO_INSCRIPCION.MAYOR_EDAD}>Mayor de Edad</option>
-                <option value={TIPO_INSCRIPCION.MENOR_EDAD}>Menor de Edad</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-8 pointer-events-none">
-                <FiLock className="w-4 h-4 text-gray-400" />
+              <label htmlFor="identification" className="block text-sm font-medium text-gray-700 mb-1">
+                Cédula <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  id="identification"
+                  name="identification"
+                  value={formData.identification || ''}
+                    onChange={handleChange}
+                    disabled={loading}
+                    maxLength={10}
+                    placeholder="10 dígitos"
+                    className={`block w-full px-2 py-1.5 text-sm pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      cedulaError || errors.identification 
+                        ? 'border-red-400 bg-red-50' 
+                        : cedulaValid && formData.identification?.length === 10
+                          ? 'border-green-400 bg-green-50'
+                          : 'border-gray-300'
+                    }`}
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                    {isCheckingCedula && <FiLoader className="w-3.5 h-3.5 text-blue-500 animate-spin" />}
+                    {!isCheckingCedula && cedulaError && <FiAlertCircle className="w-3.5 h-3.5 text-red-500" />}
+                    {!isCheckingCedula && cedulaValid && formData.identification?.length === 10 && <FiCheckCircle className="w-3.5 h-3.5 text-green-500" />}
+                  </div>
+                </div>
+                {cedulaError ? (
+                  <p className="mt-0.5 text-xs text-red-600 font-medium">{cedulaError}</p>
+                ) : errors.identification ? (
+                  <p className="mt-0.5 text-xs text-red-600">{errors.identification}</p>
+                ) : isCheckingCedula ? (
+                  <p className="mt-0.5 text-xs text-blue-600">Verificando...</p>
+                ) : cedulaValid && formData.identification?.length === 10 ? (
+                  <p className="mt-0.5 text-xs text-green-600">✓ Disponible</p>
+                ) : null}
+              </div>
+              
+              {renderInput('phono', 'Teléfono', 'tel', false, { maxLength: 10, placeholder: '10 dígitos' })}
+              <div className="col-span-2">
+                {renderInput('direction', 'Dirección')}
               </div>
             </div>
-            {/* Indicador visual */}
-            <div className={`mt-2 text-xs rounded-md px-2 py-1.5 ${
-                isMinor ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
-            }`}>
-              <FiInfo className="inline w-3 h-3 mr-1" />
-              {tieneEdadCalculada 
-                ? (isMinor ? 'Requiere representante' : 'No requiere representante') 
-                : 'Ingrese nacimiento'}
+          </Card>
+
+        {/* SECCIÓN: INFORMACIÓN MÉDICA (va a la derecha de Datos Personales) */}
+        <Card className="p-3">
+          <div className="flex items-center space-x-2 mb-3 pb-2 border-b">
+            <FiHeart className="w-4 h-4 text-pink-500" />
+            <h3 className="text-base font-semibold text-gray-900">Información Médica</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {renderTextarea('alergias', 'Alergias', 2)}
+            {renderTextarea('enfermedades', 'Enfermedades', 2)}
+            {renderTextarea('medicamentos', 'Medicamentos', 2)}
+            {renderTextarea('lesiones', 'Lesiones', 2)}
+          </div>
+        </Card>
+
+        {/* ===== FILA 2: DATOS ATLETA + DATOS INSCRIPCIÓN ===== */}
+        {/* SECCIÓN: DATOS DEL ATLETA */}
+        <Card className="p-3">
+          <div className="flex items-center space-x-2 mb-3 pb-2 border-b">
+            <FiHeart className="w-4 h-4 text-red-500" />
+            <h3 className="text-base font-semibold text-gray-900">Datos del Atleta</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {renderInput('fecha_nacimiento', 'Fecha Nacimiento', 'date', true)}
+            {renderInput('edad', 'Edad', 'number', true, { readOnly: true, className: "bg-gray-100 cursor-not-allowed" })}
+            
+            {/* CAMPO SEXO CON LÓGICA CONDICIONAL */}
+            <div className={formData.sexo === 'O' ? 'col-span-2' : ''}>
+              <label htmlFor="sexo" className="block text-sm font-medium text-gray-700 mb-1">
+                Sexo <span className="text-red-500">*</span>
+              </label>
+              <div className={`flex gap-2 ${formData.sexo === 'O' ? 'flex-row' : ''}`}>
+                <select
+                  id="sexo"
+                  name="sexo"
+                  value={formData.sexo || ''}
+                  onChange={handleChange}
+                  disabled={loading}
+                  className={`${formData.sexo === 'O' ? 'w-1/3' : 'w-full'} px-2 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.sexo ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Seleccione...</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                  <option value="O">Otro</option>
+                </select>
+                
+                {/* Input condicional para "Otro" */}
+                {formData.sexo === 'O' && (
+                  <input
+                    type="text"
+                    name="sexo_otro"
+                    value={formData.sexo_otro || ''}
+                    onChange={handleChange}
+                    placeholder="Especificar (máx. 20 car.)"
+                    maxLength={20}
+                    disabled={loading}
+                    className={`flex-1 px-2 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.sexo_otro ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                  />
+                )}
+              </div>
+              {errors.sexo && <p className="mt-0.5 text-xs text-red-600">{errors.sexo}</p>}
+              {errors.sexo_otro && <p className="mt-0.5 text-xs text-red-600">{errors.sexo_otro}</p>}
+            </div>
+            
+            {formData.sexo !== 'O' && renderSelect('tipo_sangre', 'Tipo Sangre', [
+              { value: 'A+', label: 'A+' }, { value: 'A-', label: 'A-' },
+              { value: 'B+', label: 'B+' }, { value: 'B-', label: 'B-' },
+              { value: 'AB+', label: 'AB+' }, { value: 'AB-', label: 'AB-' },
+              { value: 'O+', label: 'O+' }, { value: 'O-', label: 'O-' },
+            ])}
+          </div>
+          
+          {/* Tipo sangre en fila separada cuando sexo es "Otro" */}
+          {formData.sexo === 'O' && (
+            <div className="mt-3">
+              {renderSelect('tipo_sangre', 'Tipo Sangre', [
+                { value: 'A+', label: 'A+' }, { value: 'A-', label: 'A-' },
+                { value: 'B+', label: 'B+' }, { value: 'B-', label: 'B-' },
+                { value: 'AB+', label: 'AB+' }, { value: 'AB-', label: 'AB-' },
+                { value: 'O+', label: 'O+' }, { value: 'O-', label: 'O-' },
+              ])}
+            </div>
+          )}
+        </Card>
+
+        {/* SECCIÓN: DATOS DE INSCRIPCIÓN (va a la derecha de Datos del Atleta) */}
+        <Card className="p-3">
+          <div className="flex items-center space-x-2 mb-3 pb-2 border-b">
+            <FiFileText className="w-4 h-4 text-green-600" />
+            <h3 className="text-base font-semibold text-gray-900">Datos de Inscripción</h3>
+          </div>
+          
+          {/* ALERTA AMARILLA PARA MENORES DE EDAD */}
+          {isMinor && tieneEdadCalculada && (
+            <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-md flex items-start space-x-2">
+              <FiAlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-semibold text-amber-800">⚠️ Menor de edad</h4>
+                <p className="text-xs text-amber-700">Se requiere representante legal.</p>
+              </div>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-2 gap-3">
+            {renderInput('fecha_inscripcion', 'Fecha Inscripción', 'date', true, { max: TODAY })}
+            
+            {/* TIPO DE INSCRIPCIÓN - AUTOMÁTICO */}
+            <div>
+              <label htmlFor="tipo_inscripcion" className="block text-sm font-medium text-gray-700 mb-1">
+                Tipo 
+                <span className="ml-1 inline-flex items-center text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                  <FiLock className="w-2.5 h-2.5 mr-0.5" />Auto
+                </span>
+              </label>
+              <div className="relative">
+                <select
+                  id="tipo_inscripcion"
+                  name="tipo_inscripcion"
+                  value={formData.tipo_inscripcion}
+                  disabled={true}
+                  className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700 cursor-not-allowed"
+                >
+                  <option value={TIPO_INSCRIPCION.MAYOR_EDAD}>Mayor de Edad</option>
+                  <option value={TIPO_INSCRIPCION.MENOR_EDAD}>Menor de Edad</option>
+                </select>
+              </div>
+              <div className={`mt-1 text-xs rounded px-1.5 py-1 ${
+                  isMinor ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+              }`}>
+                <FiInfo className="inline w-3 h-3 mr-0.5" />
+                {tieneEdadCalculada 
+                  ? (isMinor ? 'Requiere representante' : 'No requiere representante') 
+                  : 'Ingrese fecha nacimiento'}
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </div>
 
-      {/* SECCIÓN: REPRESENTANTE (solo menores) */}
+      {/* SECCIÓN: REPRESENTANTE (solo menores) - ANCHO COMPLETO */}
       <div className={`transition-all duration-500 overflow-hidden ${
-          isMinor ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+          isMinor ? 'max-h-[500px] opacity-100 mt-4' : 'max-h-0 opacity-0'
       }`}>
         {isMinor && (
-          <Card className="p-4 border-2 border-purple-300 bg-gradient-to-br from-purple-50 to-white mt-4">
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-purple-200">
+          <Card className="p-3 border-2 border-purple-300 bg-gradient-to-br from-purple-50 to-white">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-purple-200">
               <div className="flex items-center space-x-2">
-                <div className="p-2 bg-purple-100 rounded-full">
-                  <FiUsers className="w-5 h-5 text-purple-600" />
+                <div className="p-1.5 bg-purple-100 rounded-full">
+                  <FiUsers className="w-4 h-4 text-purple-600" />
                 </div>
-                <h3 className="text-lg font-semibold text-purple-900">Datos del Representante Legal</h3>
+                <h3 className="text-base font-semibold text-purple-900">Representante Legal</h3>
               </div>
-              <span className="text-xs font-medium text-white bg-purple-600 px-3 py-1 rounded-full">
+              <span className="text-xs font-medium text-white bg-purple-600 px-2 py-0.5 rounded-full">
                 Obligatorio
               </span>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {renderInput('nombre_representante', 'Nombre Completo', 'text', true)}
               {renderInput('cedula_representante', 'Cédula', 'text', true, { maxLength: 10 })}
               {renderInput('parentesco_representante', 'Parentesco', 'text', true)}
               {renderInput('telefono_representante', 'Teléfono', 'tel', true, { maxLength: 10 })}
-              {renderInput('correo_representante', 'Correo Electrónico', 'email')}
+              {renderInput('correo_representante', 'Correo', 'email')}
               {renderInput('ocupacion_representante', 'Ocupación')}
-              <div className="md:col-span-2 lg:col-span-3">
+              <div className="col-span-2">
                 {renderInput('direccion_representante', 'Dirección')}
               </div>
             </div>
@@ -691,7 +792,7 @@ const InscripcionForm = ({
       </div>
 
       {/* BOTONES */}
-      <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200 sticky bottom-0 bg-white py-4 z-10">
+      <div className="flex items-center justify-end space-x-3 pt-4 mt-4 border-t border-gray-200 sticky bottom-0 bg-white py-3 z-10">
         <Button type="button" variant="secondary" onClick={onCancel} disabled={loading || isSubmitting}>
           <FiX className="w-4 h-4 mr-2" />
           Cancelar

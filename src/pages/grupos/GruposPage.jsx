@@ -7,6 +7,7 @@ import { Card, Button, Modal, Loading, ConfirmDialog } from '../../components/co
 import { GrupoCard, GrupoForm, GrupoDetailModal } from '../../components/grupos'
 import useGrupoStore from '../../stores/grupoStore'
 import { toast } from 'react-hot-toast'
+import { getFriendlyErrorMessage } from '../../utils/grupoAtletaValidators'
 
 const GruposPage = () => {
   const {
@@ -20,6 +21,7 @@ const GruposPage = () => {
     setGrupoSeleccionado,
     grupoSeleccionado,
     clearGrupoSeleccionado,
+    clearErrors,
   } = useGrupoStore()
 
   const [showModal, setShowModal] = useState(false)
@@ -27,24 +29,30 @@ const GruposPage = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [grupoToDelete, setGrupoToDelete] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [serverErrors, setServerErrors] = useState(null)
 
   useEffect(() => {
     fetchGrupos()
   }, [fetchGrupos])
 
   useEffect(() => {
-    if (error) {
-      toast.error(error)
+    if (error && !showModal) {
+      // Solo mostrar toast si no estamos en el modal (donde se muestran los errores inline)
+      toast.error(getFriendlyErrorMessage(error))
     }
-  }, [error])
+  }, [error, showModal])
 
   const handleCreate = () => {
     clearGrupoSeleccionado()
+    clearErrors()
+    setServerErrors(null)
     setShowModal(true)
   }
 
   const handleEdit = (grupo) => {
     setGrupoSeleccionado(grupo)
+    clearErrors()
+    setServerErrors(null)
     setShowModal(true)
   }
 
@@ -62,35 +70,53 @@ const GruposPage = () => {
     if (grupoToDelete) {
       const result = await deleteGrupo(grupoToDelete.id)
       if (result.success) {
-        toast.success('Grupo eliminado exitosamente')
+        toast.success(result.message || '¡Listo! El grupo ha sido eliminado')
         setShowDeleteDialog(false)
         setGrupoToDelete(null)
       } else {
-        toast.error(result.error || 'Error al eliminar el grupo')
+        toast.error(getFriendlyErrorMessage(result.message))
       }
     }
   }
 
+  const handleCloseModal = () => {
+    setShowModal(false)
+    clearGrupoSeleccionado()
+    clearErrors()
+    setServerErrors(null)
+  }
+
   const handleSubmit = async (data) => {
+    setServerErrors(null)
     let result
+    
     if (grupoSeleccionado) {
       result = await updateGrupo(grupoSeleccionado.id, data)
       if (result.success) {
-        toast.success('Grupo actualizado exitosamente')
-        setShowModal(false)
-        clearGrupoSeleccionado()
+        toast.success(result.message || '¡Excelente! El grupo ha sido actualizado')
+        handleCloseModal()
         fetchGrupos()
       } else {
-        toast.error(result.error || 'Error al actualizar el grupo')
+        // Mostrar errores de validación en el formulario
+        if (result.errors) {
+          setServerErrors(result.errors)
+        }
+        // Mostrar toast con mensaje amigable
+        toast.error(getFriendlyErrorMessage(result.message))
       }
     } else {
       result = await createGrupo(data)
       if (result.success) {
-        toast.success('Grupo creado exitosamente')
-        setShowModal(false)
+        toast.success(result.message || '¡Excelente! El grupo ha sido creado')
+        handleCloseModal()
         fetchGrupos()
       } else {
-        toast.error(result.error || 'Error al crear el grupo')
+        // Mostrar errores de validación en el formulario
+        if (result.errors) {
+          setServerErrors(result.errors)
+        }
+        // Mostrar toast con mensaje amigable
+        toast.error(getFriendlyErrorMessage(result.message))
       }
     }
   }
@@ -235,7 +261,7 @@ const GruposPage = () => {
       {/* Modal de Formulario */}
       <Modal 
         isOpen={showModal} 
-        onClose={() => setShowModal(false)}
+        onClose={handleCloseModal}
         className="bg-blue-500"
         title={grupoSeleccionado ? 'Editar Grupo' : 'Nuevo Grupo de Atletas'}
         size="xl"
@@ -243,11 +269,9 @@ const GruposPage = () => {
         <GrupoForm
           grupo={grupoSeleccionado}
           onSubmit={handleSubmit}
-          onCancel={() => {
-            setShowModal(false)
-            clearGrupoSeleccionado()
-          }}
+          onCancel={handleCloseModal}
           loading={loading}
+          serverErrors={serverErrors}
         />
       </Modal>
 

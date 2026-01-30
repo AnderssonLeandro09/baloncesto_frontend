@@ -1,11 +1,24 @@
-import { useEffect } from 'react'
-import { FiSave } from 'react-icons/fi'
+import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { FiSave, FiAlertTriangle } from 'react-icons/fi'
 import toast from 'react-hot-toast'
-import { Modal, Button, Input, Select } from '../../components/common'
+import { Modal, Button } from '../../components/common'
+import { InputUsuario } from '../../components/usuarios'
 import { useEstudianteVinculacionStore } from '../../stores'
-import { useForm } from '../../hooks'
+import {
+  ESTUDIANTE_VINCULACION_CONSTRAINTS,
+  validateIdentification,
+  validateFirstName,
+  validateLastName,
+  validateEmail,
+  validatePassword,
+  validatePhono,
+  validateCarrera,
+  validateSemestre,
+  getEstudianteFriendlyMessage
+} from '../../utils/estudianteVinculacionValidators'
 
-const initialValues = {
+const defaultValues = {
   identification: '',
   first_name: '',
   last_name: '',
@@ -17,58 +30,43 @@ const initialValues = {
   semestre: ''
 }
 
-const EstudianteVinculacionForm = ({ isOpen, onClose }) => {
+const EstudianteVinculacionForm = ({ isOpen, onClose, serverErrors = {} }) => {
   const { 
     estudianteSeleccionado, 
     createEstudiante, 
     updateEstudiante, 
     loading,
-    clearEstudianteSeleccionado
+    clearEstudianteSeleccionado,
+    clearErrors
   } = useEstudianteVinculacionStore()
 
   const isEdit = !!estudianteSeleccionado
-
-  // Validación dinámica según el modo (crear/editar)
-  const validate = (values) => {
-    const errors = {}
-    if (!values.identification) errors.identification = 'La identificación es obligatoria'
-    if (!values.first_name) errors.first_name = 'El nombre es obligatorio'
-    if (!values.last_name) errors.last_name = 'El apellido es obligatorio'
-    
-    // Email y password solo son obligatorios en modo creación
-    if (!isEdit) {
-      if (!values.email) {
-        errors.email = 'El email es obligatorio'
-      } else if (!values.email.endsWith('@unl.edu.ec')) {
-        errors.email = 'El correo debe ser institucional (@unl.edu.ec)'
-      }
-      if (!values.password) {
-        errors.password = 'La contraseña es obligatoria'
-      } else if (values.password.length > 30) {
-        errors.password = 'La contraseña no puede exceder los 30 caracteres'
-      }
-    }
-    
-    if (!values.carrera) errors.carrera = 'La carrera es obligatoria'
-    if (!values.semestre) errors.semestre = 'El semestre es obligatorio'
-    return errors
-  }
+  const [isSubmitted, setIsSubmitted] = useState(false)
 
   const {
-    values,
-    errors,
-    touched,
-    handleChange,
-    handleBlur,
+    register,
     handleSubmit,
-    setMultipleValues
-  } = useForm(initialValues, validate)
+    reset,
+    setValue,
+    setError,
+    clearErrors: clearFormErrors,
+    formState: { errors }
+  } = useForm({
+    defaultValues,
+    mode: 'onBlur',
+    reValidateMode: 'onChange'
+  })
 
+  // Cargar datos cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
+      setIsSubmitted(false)
+      clearErrors()
+      clearFormErrors()
+      
       if (estudianteSeleccionado) {
         const { persona, estudiante } = estudianteSeleccionado
-        setMultipleValues({
+        reset({
           id: estudiante.id,
           identification: persona.identification || '',
           first_name: persona.firts_name || persona.first_name || persona.nombres || persona.firstName || '',
@@ -81,18 +79,84 @@ const EstudianteVinculacionForm = ({ isOpen, onClose }) => {
           semestre: estudiante.semestre || ''
         })
       } else {
-        setMultipleValues(initialValues)
+        reset(defaultValues)
       }
     }
-  }, [isOpen, estudianteSeleccionado, setMultipleValues])
+  }, [isOpen, estudianteSeleccionado, reset, clearErrors, clearFormErrors])
+
+  // Aplicar errores del servidor a los campos del formulario
+  useEffect(() => {
+    if (serverErrors && Object.keys(serverErrors).length > 0) {
+      Object.entries(serverErrors).forEach(([field, message]) => {
+        setError(field, { type: 'server', message })
+      })
+    }
+  }, [serverErrors, setError])
+
+  // Validaciones de campos que replican las del backend
+  const fieldValidations = {
+    identification: {
+      validate: (value) => {
+        const result = validateIdentification(value)
+        return result.valid || result.message
+      }
+    },
+    first_name: {
+      validate: (value) => {
+        const result = validateFirstName(value)
+        return result.valid || result.message
+      }
+    },
+    last_name: {
+      validate: (value) => {
+        const result = validateLastName(value)
+        return result.valid || result.message
+      }
+    },
+    email: {
+      validate: (value) => {
+        if (isEdit) return true // Opcional en edición
+        const result = validateEmail(value, !isEdit)
+        return result.valid || result.message
+      }
+    },
+    password: {
+      validate: (value) => {
+        if (isEdit) return true // Opcional en edición
+        const result = validatePassword(value, !isEdit)
+        return result.valid || result.message
+      }
+    },
+    phono: {
+      validate: (value) => {
+        const result = validatePhono(value)
+        return result.valid || result.message
+      }
+    },
+    carrera: {
+      validate: (value) => {
+        const result = validateCarrera(value)
+        return result.valid || result.message
+      }
+    },
+    semestre: {
+      validate: (value) => {
+        const result = validateSemestre(value)
+        return result.valid || result.message
+      }
+    }
+  }
 
   const onSubmit = async (formValues) => {
+    setIsSubmitted(true)
+    clearErrors()
+
     const personaData = {
       identification: formValues.identification,
       first_name: formValues.first_name,
       last_name: formValues.last_name,
-      phono: formValues.phono,
-      direction: formValues.direction,
+      phono: formValues.phono || '',
+      direction: formValues.direction || '',
       type_identification: 'CEDULA',
       type_stament: 'ESTUDIANTES'
     }
@@ -107,7 +171,7 @@ const EstudianteVinculacionForm = ({ isOpen, onClose }) => {
       persona: personaData,
       estudiante: {
         carrera: formValues.carrera,
-        semestre: formValues.semestre
+        semestre: formValues.semestre.toUpperCase()
       }
     }
 
@@ -116,12 +180,23 @@ const EstudianteVinculacionForm = ({ isOpen, onClose }) => {
       : await createEstudiante(payload)
 
     if (result.success) {
-      toast.success(isEdit ? 'Estudiante actualizado exitosamente' : 'Estudiante creado exitosamente')
+      toast.success(result.message || (isEdit ? 'Estudiante actualizado exitosamente' : 'Estudiante creado exitosamente'))
       onClose()
       if (isEdit) clearEstudianteSeleccionado()
     } else {
-      toast.error(result.error || 'Ocurrió un error inesperado')
+      // Aplicar errores del servidor a los campos del formulario
+      if (result.fieldErrors && Object.keys(result.fieldErrors).length > 0) {
+        Object.entries(result.fieldErrors).forEach(([field, message]) => {
+          setError(field, { type: 'server', message })
+        })
+      }
+      toast.error(getEstudianteFriendlyMessage(result.error) || 'Ocurrió un error inesperado')
     }
+  }
+
+  // Función para obtener el error de un campo (del formulario o del servidor)
+  const getFieldError = (fieldName) => {
+    return errors[fieldName]?.message || serverErrors[fieldName]
   }
 
   return (
@@ -132,89 +207,84 @@ const EstudianteVinculacionForm = ({ isOpen, onClose }) => {
       size="lg"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Mostrar errores generales del servidor */}
+        {Object.keys(serverErrors).length > 0 && isSubmitted && (
+          <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <FiAlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-red-700">
+              Por favor, corrige los errores marcados en el formulario.
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Datos Personales */}
           <div className="space-y-3">
             <h3 className="text-base font-medium text-gray-900 border-b pb-1">Datos Personales</h3>
             
-            <Input
+            <InputUsuario
               label="Identificación (Cédula)"
-              name="identification"
-              value={values.identification}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.identification}
-              touched={touched.identification}
+              {...register('identification', fieldValidations.identification)}
+              error={getFieldError('identification')}
               required
+              maxLength={ESTUDIANTE_VINCULACION_CONSTRAINTS.identification.length}
+              placeholder="Ingresa la cédula de 10 dígitos"
             />
 
             <div className="grid grid-cols-2 gap-3">
-              <Input
+              <InputUsuario
                 label="Nombres"
-                name="first_name"
-                value={values.first_name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                error={errors.first_name}
-                touched={touched.first_name}
+                {...register('first_name', fieldValidations.first_name)}
+                error={getFieldError('first_name')}
                 required
+                maxLength={ESTUDIANTE_VINCULACION_CONSTRAINTS.first_name.maxLength}
               />
-              <Input
+              <InputUsuario
                 label="Apellidos"
-                name="last_name"
-                value={values.last_name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                error={errors.last_name}
-                touched={touched.last_name}
+                {...register('last_name', fieldValidations.last_name)}
+                error={getFieldError('last_name')}
                 required
+                maxLength={ESTUDIANTE_VINCULACION_CONSTRAINTS.last_name.maxLength}
               />
             </div>
 
             {!isEdit && (
               <>
-                <Input
-                  label="Email"
-                  name="email"
+                <InputUsuario
+                  label="Email Institucional"
                   type="email"
-                  value={values.email}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  error={errors.email}
-                  touched={touched.email}
+                  {...register('email', fieldValidations.email)}
+                  error={getFieldError('email')}
                   required
+                  placeholder="ejemplo@unl.edu.ec"
                 />
 
-                <Input
+                <InputUsuario
                   label="Contraseña"
-                  name="password"
                   type="password"
-                  value={values.password}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  error={errors.password}
-                  touched={touched.password}
+                  {...register('password', fieldValidations.password)}
+                  error={getFieldError('password')}
                   required
+                  minLength={ESTUDIANTE_VINCULACION_CONSTRAINTS.password.minLength}
+                  maxLength={ESTUDIANTE_VINCULACION_CONSTRAINTS.password.maxLength}
+                  placeholder="Mínimo 8 caracteres, una mayúscula y un número"
                 />
               </>
             )}
 
             <div className="grid grid-cols-1 gap-3">
-              <Input
+              <InputUsuario
                 label="Teléfono"
-                name="phono"
-                value={values.phono}
-                onChange={handleChange}
-                onBlur={handleBlur}
+                {...register('phono', fieldValidations.phono)}
+                error={getFieldError('phono')}
+                placeholder="Ej. 0991234567"
               />
             </div>
 
-            <Input
+            <InputUsuario
               label="Dirección"
-              name="direction"
-              value={values.direction}
-              onChange={handleChange}
-              onBlur={handleBlur}
+              {...register('direction')}
+              placeholder="Dirección del estudiante (opcional)"
             />
           </div>
 
@@ -222,29 +292,28 @@ const EstudianteVinculacionForm = ({ isOpen, onClose }) => {
           <div className="space-y-3">
             <h3 className="text-base font-medium text-gray-900 border-b pb-1">Datos de Vinculación</h3>
             
-            <Input
+            <InputUsuario
               label="Carrera"
-              name="carrera"
-              value={values.carrera}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.carrera}
-              touched={touched.carrera}
+              {...register('carrera', fieldValidations.carrera)}
+              error={getFieldError('carrera')}
               required
+              minLength={ESTUDIANTE_VINCULACION_CONSTRAINTS.carrera.minLength}
+              maxLength={ESTUDIANTE_VINCULACION_CONSTRAINTS.carrera.maxLength}
               placeholder="Ej. Ingeniería en Sistemas"
             />
 
-            <Input
+            <InputUsuario
               label="Semestre"
-              name="semestre"
-              value={values.semestre}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={errors.semestre}
-              touched={touched.semestre}
+              {...register('semestre', fieldValidations.semestre)}
+              error={getFieldError('semestre')}
               required
-              placeholder="Ej. Séptimo"
+              placeholder="1-10 o A-J"
             />
+            
+            {/* Hint para semestre */}
+            <p className="text-xs text-gray-500 -mt-2">
+              Ingresa un número del 1 al 10, o una letra de la A a la J
+            </p>
           </div>
         </div>
 

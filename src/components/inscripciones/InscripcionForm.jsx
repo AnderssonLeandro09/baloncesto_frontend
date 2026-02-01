@@ -63,7 +63,8 @@ const InscripcionForm = ({
   onSubmit, 
   onCancel, 
   loading = false,
-  serverErrors = {} // Errores del servidor para mostrar en campos específicos
+  serverErrors = {}, // Errores del servidor para mostrar en campos específicos
+  readOnly = false // Modo solo lectura para ver detalles
 }) => {
   const [submitError, setSubmitError] = useState(null)
   const [duplicateError, setDuplicateError] = useState(null) // Error específico de cédula duplicada
@@ -517,7 +518,7 @@ const InscripcionForm = ({
   const renderInput = (name, label, type = 'text', required = false, props = {}) => (
     <div>
       <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
-        {label} {required && <span className="text-red-500">*</span>}
+        {label} {required && !readOnly && <span className="text-red-500">*</span>}
       </label>
       <input
         type={type}
@@ -525,38 +526,39 @@ const InscripcionForm = ({
         name={name}
         value={formData[name] || ''}
         onChange={handleChange}
-        disabled={loading}
+        disabled={loading || readOnly}
+        readOnly={readOnly}
         className={`block w-full px-2 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
           errors[name] ? 'border-red-300' : 'border-gray-300'
-        } ${props.readOnly ? 'bg-gray-100 text-gray-500' : ''}`}
+        } ${readOnly ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
         {...props}
       />
-      {formatWarning[name] && <p className="mt-0.5 text-xs text-amber-600 font-medium flex items-center"><FiAlertTriangle className="w-3 h-3 mr-1" />{formatWarning[name]}</p>}
-      {errors[name] && !formatWarning[name] && <p className="mt-0.5 text-xs text-red-600">{errors[name]}</p>}
+      {!readOnly && formatWarning[name] && <p className="mt-0.5 text-xs text-amber-600 font-medium flex items-center"><FiAlertTriangle className="w-3 h-3 mr-1" />{formatWarning[name]}</p>}
+      {!readOnly && errors[name] && !formatWarning[name] && <p className="mt-0.5 text-xs text-red-600">{errors[name]}</p>}
     </div>
   )
 
   const renderSelect = (name, label, options, required = false) => (
     <div>
       <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
-        {label} {required && <span className="text-red-500">*</span>}
+        {label} {required && !readOnly && <span className="text-red-500">*</span>}
       </label>
       <select
         id={name}
         name={name}
         value={formData[name] || ''}
         onChange={handleChange}
-        disabled={loading}
+        disabled={loading || readOnly}
         className={`block w-full px-2 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
           errors[name] ? 'border-red-300' : 'border-gray-300'
-        }`}
+        } ${readOnly ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
       >
         <option value="">Seleccione...</option>
         {options.map(opt => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
-      {errors[name] && <p className="mt-0.5 text-xs text-red-600">{errors[name]}</p>}
+      {!readOnly && errors[name] && <p className="mt-0.5 text-xs text-red-600">{errors[name]}</p>}
     </div>
   )
 
@@ -568,9 +570,10 @@ const InscripcionForm = ({
         name={name}
         value={formData[name] || ''}
         onChange={handleChange}
-        disabled={loading}
+        disabled={loading || readOnly}
+        readOnly={readOnly}
         rows={rows}
-        className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className={`block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${readOnly ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
       />
     </div>
   )
@@ -621,7 +624,7 @@ const InscripcionForm = ({
             {/* CÉDULA CON VALIDACIÓN EN TIEMPO REAL */}
             <div>
               <label htmlFor="identification" className="block text-sm font-medium text-gray-700 mb-1">
-                Cédula <span className="text-red-500">*</span>
+                Cédula {!readOnly && <span className="text-red-500">*</span>}
               </label>
               <div className="relative">
                 <input
@@ -630,24 +633,29 @@ const InscripcionForm = ({
                   name="identification"
                   value={formData.identification || ''}
                     onChange={handleChange}
-                    disabled={loading}
+                    disabled={loading || readOnly}
+                    readOnly={readOnly}
                     maxLength={10}
                     placeholder="10 dígitos"
                     className={`block w-full px-2 py-1.5 text-sm pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      cedulaError || errors.identification 
-                        ? 'border-red-400 bg-red-50' 
-                        : cedulaValid && formData.identification?.length === 10
-                          ? 'border-green-400 bg-green-50'
-                          : 'border-gray-300'
+                      readOnly 
+                        ? 'bg-gray-50 text-gray-700 cursor-not-allowed border-gray-300'
+                        : cedulaError || errors.identification 
+                          ? 'border-red-400 bg-red-50' 
+                          : cedulaValid && formData.identification?.length === 10
+                            ? 'border-green-400 bg-green-50'
+                            : 'border-gray-300'
                     }`}
                   />
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2">
-                    {isCheckingCedula && <FiLoader className="w-3.5 h-3.5 text-blue-500 animate-spin" />}
-                    {!isCheckingCedula && cedulaError && <FiAlertCircle className="w-3.5 h-3.5 text-red-500" />}
-                    {!isCheckingCedula && cedulaValid && formData.identification?.length === 10 && <FiCheckCircle className="w-3.5 h-3.5 text-green-500" />}
-                  </div>
+                  {!readOnly && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                      {isCheckingCedula && <FiLoader className="w-3.5 h-3.5 text-blue-500 animate-spin" />}
+                      {!isCheckingCedula && cedulaError && <FiAlertCircle className="w-3.5 h-3.5 text-red-500" />}
+                      {!isCheckingCedula && cedulaValid && formData.identification?.length === 10 && <FiCheckCircle className="w-3.5 h-3.5 text-green-500" />}
+                    </div>
+                  )}
                 </div>
-                {cedulaError ? (
+                {!readOnly && (cedulaError ? (
                   <p className="mt-0.5 text-xs text-red-600 font-medium">{cedulaError}</p>
                 ) : errors.identification ? (
                   <p className="mt-0.5 text-xs text-red-600">{errors.identification}</p>
@@ -655,7 +663,7 @@ const InscripcionForm = ({
                   <p className="mt-0.5 text-xs text-blue-600">Verificando...</p>
                 ) : cedulaValid && formData.identification?.length === 10 ? (
                   <p className="mt-0.5 text-xs text-green-600">✓ Disponible</p>
-                ) : null}
+                ) : null)}
               </div>
               
               {renderInput('phono', 'Teléfono', 'tel', false, { maxLength: 10, placeholder: '10 dígitos' })}
@@ -693,7 +701,7 @@ const InscripcionForm = ({
             {/* CAMPO SEXO CON LÓGICA CONDICIONAL */}
             <div className={formData.sexo === 'O' ? 'col-span-2' : ''}>
               <label htmlFor="sexo" className="block text-sm font-medium text-gray-700 mb-1">
-                Sexo <span className="text-red-500">*</span>
+                Sexo {!readOnly && <span className="text-red-500">*</span>}
               </label>
               <div className={`flex gap-2 ${formData.sexo === 'O' ? 'flex-row' : ''}`}>
                 <select
@@ -701,10 +709,10 @@ const InscripcionForm = ({
                   name="sexo"
                   value={formData.sexo || ''}
                   onChange={handleChange}
-                  disabled={loading}
+                  disabled={loading || readOnly}
                   className={`${formData.sexo === 'O' ? 'w-1/3' : 'w-full'} px-2 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     errors.sexo ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                  } ${readOnly ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
                 >
                   <option value="">Seleccione...</option>
                   <option value="M">Masculino</option>
@@ -721,15 +729,16 @@ const InscripcionForm = ({
                     onChange={handleChange}
                     placeholder="Especificar (máx. 20 car.)"
                     maxLength={20}
-                    disabled={loading}
+                    disabled={loading || readOnly}
+                    readOnly={readOnly}
                     className={`flex-1 px-2 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       errors.sexo_otro ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    } ${readOnly ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
                   />
                 )}
               </div>
-              {errors.sexo && <p className="mt-0.5 text-xs text-red-600">{errors.sexo}</p>}
-              {errors.sexo_otro && <p className="mt-0.5 text-xs text-red-600">{errors.sexo_otro}</p>}
+              {!readOnly && errors.sexo && <p className="mt-0.5 text-xs text-red-600">{errors.sexo}</p>}
+              {!readOnly && errors.sexo_otro && <p className="mt-0.5 text-xs text-red-600">{errors.sexo_otro}</p>}
             </div>
             
             {formData.sexo !== 'O' && renderSelect('tipo_sangre', 'Tipo Sangre', [
@@ -831,7 +840,7 @@ const InscripcionForm = ({
               {/* CÉDULA REPRESENTANTE CON VALIDACIÓN EN TIEMPO REAL */}
               <div>
                 <label htmlFor="cedula_representante" className="block text-sm font-medium text-gray-700 mb-1">
-                  Cédula <span className="text-red-500">*</span>
+                  Cédula {!readOnly && <span className="text-red-500">*</span>}
                 </label>
                 <div className="relative">
                   <input
@@ -840,24 +849,29 @@ const InscripcionForm = ({
                     name="cedula_representante"
                     value={formData.cedula_representante || ''}
                     onChange={handleChange}
-                    disabled={loading}
+                    disabled={loading || readOnly}
+                    readOnly={readOnly}
                     maxLength={10}
                     placeholder="10 dígitos"
                     className={`block w-full px-2 py-1.5 text-sm pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      cedulaRepError || errors.cedula_representante || formatWarning.cedula_representante
-                        ? 'border-red-400 bg-red-50' 
-                        : cedulaRepValid && formData.cedula_representante?.length === 10
-                          ? 'border-green-400 bg-green-50'
-                          : 'border-gray-300'
+                      readOnly
+                        ? 'bg-gray-50 text-gray-700 cursor-not-allowed border-gray-300'
+                        : cedulaRepError || errors.cedula_representante || formatWarning.cedula_representante
+                          ? 'border-red-400 bg-red-50' 
+                          : cedulaRepValid && formData.cedula_representante?.length === 10
+                            ? 'border-green-400 bg-green-50'
+                            : 'border-gray-300'
                     }`}
                   />
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2">
-                    {isCheckingCedulaRep && <FiLoader className="w-3.5 h-3.5 text-blue-500 animate-spin" />}
-                    {!isCheckingCedulaRep && (cedulaRepError || formatWarning.cedula_representante) && <FiAlertCircle className="w-3.5 h-3.5 text-amber-500" />}
-                    {!isCheckingCedulaRep && cedulaRepValid && formData.cedula_representante?.length === 10 && !cedulaRepError && <FiCheckCircle className="w-3.5 h-3.5 text-green-500" />}
-                  </div>
+                  {!readOnly && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                      {isCheckingCedulaRep && <FiLoader className="w-3.5 h-3.5 text-blue-500 animate-spin" />}
+                      {!isCheckingCedulaRep && (cedulaRepError || formatWarning.cedula_representante) && <FiAlertCircle className="w-3.5 h-3.5 text-amber-500" />}
+                      {!isCheckingCedulaRep && cedulaRepValid && formData.cedula_representante?.length === 10 && !cedulaRepError && <FiCheckCircle className="w-3.5 h-3.5 text-green-500" />}
+                    </div>
+                  )}
                 </div>
-                {formatWarning.cedula_representante ? (
+                {!readOnly && (formatWarning.cedula_representante ? (
                   <p className="mt-0.5 text-xs text-amber-600 font-medium">{formatWarning.cedula_representante}</p>
                 ) : cedulaRepError ? (
                   <p className="mt-0.5 text-xs text-red-600 font-medium">{cedulaRepError}</p>
@@ -869,7 +883,7 @@ const InscripcionForm = ({
                   <p className="mt-0.5 text-xs text-green-600 font-medium">✓ {cedulaRepInfo}</p>
                 ) : cedulaRepValid && formData.cedula_representante?.length === 10 ? (
                   <p className="mt-0.5 text-xs text-green-600">✓ Cédula validada</p>
-                ) : null}
+                ) : null)}
               </div>
 
               {renderInput('parentesco_representante', 'Parentesco', 'text', true)}
@@ -888,20 +902,22 @@ const InscripcionForm = ({
       <div className="flex items-center justify-end space-x-3 pt-4 mt-4 border-t border-gray-200 sticky bottom-0 bg-white py-3 z-10">
         <Button type="button" variant="secondary" onClick={onCancel} disabled={loading || isSubmitting}>
           <FiX className="w-4 h-4 mr-2" />
-          Cancelar
+          {readOnly ? 'Cerrar' : 'Cancelar'}
         </Button>
-        <Button 
-          type="submit" 
-          variant="primary" 
-          disabled={loading || isSubmitting || !!cedulaError || !!cedulaRepError || isCheckingCedula || isCheckingCedulaRep} 
-          loading={loading || isSubmitting}
-        >
-          {(loading || isSubmitting) ? (
-            <><FiLoader className="w-4 h-4 mr-2 animate-spin" />Guardando...</>
-          ) : (
-            <><FiSave className="w-4 h-4 mr-2" />{inscripcion ? 'Actualizar' : 'Crear'} Inscripción</>
-          )}
-        </Button>
+        {!readOnly && (
+          <Button 
+            type="submit" 
+            variant="primary" 
+            disabled={loading || isSubmitting || !!cedulaError || !!cedulaRepError || isCheckingCedula || isCheckingCedulaRep} 
+            loading={loading || isSubmitting}
+          >
+            {(loading || isSubmitting) ? (
+              <><FiLoader className="w-4 h-4 mr-2 animate-spin" />Guardando...</>
+            ) : (
+              <><FiSave className="w-4 h-4 mr-2" />{inscripcion ? 'Actualizar' : 'Crear'} Inscripción</>
+            )}
+          </Button>
+        )}
       </div>
     </form>
   )

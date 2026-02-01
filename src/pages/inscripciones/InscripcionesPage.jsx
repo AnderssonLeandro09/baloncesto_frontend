@@ -36,6 +36,7 @@ const InscripcionesPage = () => {
   const [inscripcionToToggle, setInscripcionToToggle] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [formErrors, setFormErrors] = useState({})
+  const [isViewMode, setIsViewMode] = useState(false)
 
   // Cargar inscripciones al montar
   useEffect(() => {
@@ -54,6 +55,7 @@ const InscripcionesPage = () => {
     clearInscripcionSeleccionada()
     clearErrors()
     setFormErrors({})
+    setIsViewMode(false)
     setShowModal(true)
   }
 
@@ -62,12 +64,16 @@ const InscripcionesPage = () => {
     setInscripcionSeleccionada(inscripcion)
     clearErrors()
     setFormErrors({})
+    setIsViewMode(false)
     setShowModal(true)
   }
 
-  // Ver detalles (por ahora abre edición)
+  // Ver detalles (modo solo lectura)
   const handleView = (inscripcion) => {
     setInscripcionSeleccionada(inscripcion)
+    clearErrors()
+    setFormErrors({})
+    setIsViewMode(true)
     setShowModal(true)
   }
 
@@ -101,6 +107,7 @@ const InscripcionesPage = () => {
     clearInscripcionSeleccionada()
     clearErrors()
     setFormErrors({})
+    setIsViewMode(false)
   }
 
   // Manejar submit del formulario
@@ -218,11 +225,11 @@ const InscripcionesPage = () => {
         loading={loading}
       />
 
-      {/* Modal de creación/edición */}
+      {/* Modal de creación/edición/visualización */}
       <Modal
         isOpen={showModal}
         onClose={handleCloseModal}
-        title={inscripcionSeleccionada ? 'Editar Inscripción' : 'Nueva Inscripción'}
+        title={isViewMode ? 'Detalles de Inscripción' : (inscripcionSeleccionada ? 'Editar Inscripción' : 'Nueva Inscripción')}
         size="xl"
       >
         <InscripcionForm
@@ -231,6 +238,7 @@ const InscripcionesPage = () => {
           onCancel={handleCloseModal}
           loading={loading}
           serverErrors={formErrors}
+          readOnly={isViewMode}
         />
       </Modal>
 

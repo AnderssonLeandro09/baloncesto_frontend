@@ -4,7 +4,8 @@ import toast from 'react-hot-toast'
 import { Modal, Button, Input, Select } from '../../components/common'
 import { useEntrenadorStore } from '../../stores'
 import { useForm } from '../../hooks'
-import { validarDatosEntrenador, validarEspecialidad, validarClubAsignado, MENSAJES_ERROR_ENTRENADOR, VALIDACIONES_ENTRENADOR, TOOLTIPS_ENTRENADOR } from '../../utils/validacionesEntrenador'
+import { validarEspecialidad, validarClubAsignado, VALIDACIONES_ENTRENADOR, TOOLTIPS_ENTRENADOR } from '../../utils/validacionesEntrenador'
+import { isValidCedula, isValidEmail, isValidPhone } from '../../utils/validators'
 
 const initialValues = {
   identification: '',
@@ -32,18 +33,61 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
   // Validación dinámica según el modo (crear/editar)
   const validate = (values) => {
     const errors = {}
-    if (!values.identification) errors.identification = 'La identificación es obligatoria'
-    if (!values.first_name) errors.first_name = 'El nombre es obligatorio'
-    if (!values.last_name) errors.last_name = 'El apellido es obligatorio'
+    if (!values.identification) {
+      errors.identification = 'La identificación es obligatoria'
+    } else if (!/^\d+$/.test(values.identification)) {
+      errors.identification = 'La identificación debe contener solo números'
+    } else if (!isValidCedula(values.identification)) {
+      errors.identification = 'La cédula ecuatoriana no es válida'
+    }
+
+    if (!values.first_name) {
+      errors.first_name = 'El nombre es obligatorio'
+    } else {
+      const nombre = values.first_name.trim()
+      if (nombre.length < 3) errors.first_name = 'El nombre debe tener al menos 3 caracteres'
+      if (nombre.length > 20) errors.first_name = 'El nombre no puede exceder 20 caracteres'
+    }
+
+    if (!values.last_name) {
+      errors.last_name = 'El apellido es obligatorio'
+    } else {
+      const apellido = values.last_name.trim()
+      if (apellido.length < 3) errors.last_name = 'El apellido debe tener al menos 3 caracteres'
+      if (apellido.length > 20) errors.last_name = 'El apellido no puede exceder 20 caracteres'
+    }
     
     // Email y password solo son obligatorios en modo creación
     if (!isEdit) {
       if (!values.email) errors.email = 'El email es obligatorio'
+      else if (!isValidEmail(values.email) || !/^[^\s@]+@gmail\.com$/i.test(values.email)) {
+        errors.email = 'El email debe ser un Gmail válido'
+      }
       if (!values.password) {
         errors.password = 'La contraseña es obligatoria'
+      } else if (values.password.length < 8) {
+        errors.password = 'La contraseña debe tener al menos 8 caracteres'
+      } else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(values.password)) {
+        errors.password = 'La contraseña debe contener letras y números'
       } else if (values.password.length > 30) {
         errors.password = 'La contraseña no puede exceder los 30 caracteres'
       }
+    }
+
+    if (values.phono) {
+      if (!/^\d+$/.test(values.phono)) {
+        errors.phono = 'El teléfono debe contener solo números'
+      } else if (!isValidPhone(values.phono)) {
+        errors.phono = 'El teléfono no es válido'
+      }
+    }
+
+    if (!values.direction) {
+      errors.direction = 'La dirección es obligatoria'
+    } else {
+      const direccion = values.direction.trim()
+      if (direccion.length < 3) errors.direction = 'La dirección debe tener al menos 3 caracteres'
+      if (direccion.length > 20) errors.direction = 'La dirección no puede exceder 20 caracteres'
     }
     
     // Validar especialidad y club_asignado con utilidades específicas
@@ -149,6 +193,9 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
               error={errors.identification}
               touched={touched.identification}
               required
+              inputMode="numeric"
+              pattern="\d*"
+              maxLength={10}
             />
 
             <div className="grid grid-cols-2 gap-3">
@@ -161,6 +208,8 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
                 error={errors.first_name}
                 touched={touched.first_name}
                 required
+                minLength={3}
+                maxLength={20}
               />
               <Input
                 label="Apellidos"
@@ -171,6 +220,8 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
                 error={errors.last_name}
                 touched={touched.last_name}
                 required
+                minLength={3}
+                maxLength={20}
               />
             </div>
 
@@ -209,6 +260,10 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
                 value={values.phono}
                 onChange={handleChange}
                 onBlur={handleBlur}
+                error={errors.phono}
+                touched={touched.phono}
+                inputMode="numeric"
+                pattern="\d*"
               />
             </div>
 
@@ -218,6 +273,10 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
               value={values.direction}
               onChange={handleChange}
               onBlur={handleBlur}
+              error={errors.direction}
+              touched={touched.direction}
+              minLength={3}
+              maxLength={20}
             />
           </div>
 

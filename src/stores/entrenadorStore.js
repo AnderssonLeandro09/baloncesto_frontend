@@ -4,6 +4,15 @@
 import { create } from 'zustand'
 import { EntrenadorService } from '../api'
 
+const resolveErrorMessage = (error) => {
+  const data = error?.response?.data
+  if (typeof data === 'string') return data
+  if (data?.error) return data.error
+  if (data?.message) return data.message
+  if (data?.detail) return data.detail
+  return error?.message || 'Ocurrió un error inesperado'
+}
+
 const useEntrenadorStore = create((set, get) => ({
   // Estado
   entrenadores: [],
@@ -32,7 +41,7 @@ const useEntrenadorStore = create((set, get) => ({
         loading: false 
       })
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: resolveErrorMessage(error), loading: false })
     }
   },
 
@@ -46,8 +55,9 @@ const useEntrenadorStore = create((set, get) => ({
       }))
       return { success: true, data: response }
     } catch (error) {
-      set({ error: error.message, loading: false })
-      return { success: false, error: error.message }
+      const message = resolveErrorMessage(error)
+      set({ error: message, loading: false })
+      return { success: false, error: message }
     }
   },
 
@@ -62,8 +72,9 @@ const useEntrenadorStore = create((set, get) => ({
       }))
       return { success: true, data: response }
     } catch (error) {
-      set({ error: error.message, loading: false })
-      return { success: false, error: error.message }
+      const message = resolveErrorMessage(error)
+      set({ error: message, loading: false })
+      return { success: false, error: message }
     }
   },
 
@@ -77,8 +88,9 @@ const useEntrenadorStore = create((set, get) => ({
       }))
       return { success: true }
     } catch (error) {
-      set({ error: error.message, loading: false })
-      return { success: false, error: error.message }
+      const message = resolveErrorMessage(error)
+      set({ error: message, loading: false })
+      return { success: false, error: message }
     }
   },
 

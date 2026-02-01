@@ -36,7 +36,7 @@ const Sidebar = () => {
 
   return (
     <aside 
-      className={`relative bg-black min-h-screen flex flex-col transition-all duration-300 ease-in-out ${
+      className={`relative bg-gray-800 min-h-screen flex flex-col transition-all duration-300 ease-in-out ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}
     >

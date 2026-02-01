@@ -38,7 +38,7 @@ const HomePage = () => {
       {/* Background Image with Overlay */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: 'url(/home_hero.png)' }}
+        style={{ backgroundImage: 'url(/home_hero.webp)' }}
       >
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-blue-900/60"></div>
@@ -99,7 +99,7 @@ const HomePage = () => {
                   <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-300 to-cyan-300 animate-gradient">
                     Rendimiento
                   </span>
-                  de tus Atletas
+                  de los Atletas
                 </h1>
                 
                 {/* Description */}
@@ -107,17 +107,6 @@ const HomePage = () => {
                   Plataforma integral para el seguimiento, análisis y mejora del desempeño 
                   deportivo en baloncesto universitario.
                 </p>
-
-                {/* CTA Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-fade-in-up animation-delay-300">
-                  <button
-                    onClick={() => navigate('/login')}
-                    className="group px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl hover:from-blue-400 hover:to-blue-500 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 flex items-center justify-center gap-2"
-                  >
-                    Comenzar Ahora
-                    <FiArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
               </div>
 
               {/* Right Content - Feature Cards */}
@@ -140,37 +129,10 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* Stats Section */}
-        <section className="py-8 border-t border-white/10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {[
-                { value: '500+', label: 'Atletas Registrados' },
-                { value: '50+', label: 'Entrenadores' },
-                { value: '1000+', label: 'Pruebas Realizadas' },
-                { value: '15+', label: 'Años de Experiencia' }
-              ].map((stat) => (
-                <div key={stat.label} className="text-center group cursor-default">
-                  <p className="text-3xl lg:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 group-hover:from-blue-300 group-hover:to-cyan-200 transition-all">
-                    {stat.value}
-                  </p>
-                  <p className="text-gray-400 text-sm mt-1">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Footer */}
         <footer className="py-6 border-t border-white/10 backdrop-blur-sm bg-black/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-700 rounded-md flex items-center justify-center">
-                  <FiActivity className="w-3.5 h-3.5 text-white" />
-                </div>
-                <span className="text-white/60 text-sm font-medium">Kallpa UNL - Baloncesto</span>
-              </div>
+            <div className="flex justify-center items-center flex-col space-y-2">
               <p className="text-white/40 text-sm">
                 © 2026 Universidad Nacional de Loja. Todos los derechos reservados.
               </p>

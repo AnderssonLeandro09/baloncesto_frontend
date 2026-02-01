@@ -99,7 +99,7 @@ const LoginPage = () => {
       {/* Background Image - Jugador visible a la izquierda */}
       <div 
         className="absolute inset-0 bg-cover bg-left bg-no-repeat"
-        style={{ backgroundImage: 'url(/login_hero.png)' }}
+        style={{ backgroundImage: 'url(/login_hero.webp)' }}
       >
         {/* Gradient Overlay - oscurece más hacia la derecha para el formulario */}
         <div className="absolute inset-0 bg-gradient-to-l from-gray-900 via-gray-900/80 to-transparent"></div>

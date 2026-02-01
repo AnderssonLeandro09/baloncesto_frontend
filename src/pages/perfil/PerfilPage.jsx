@@ -39,12 +39,16 @@ const PerfilPage = () => {
 
   if (!profile) return <div>No se pudo cargar el perfil</div>
 
-  // Preparar datos para visualización
-  const roleKey = ROLE_KEYS[profile.role] || profile.role.toLowerCase()
+  // Preparar datos para visualización con seguridad
+  const roleKey = ROLE_KEYS[profile.role] || (profile.role ? profile.role.toLowerCase() : '')
+  const personaData = profile.data?.persona || {}
+  const roleData = (roleKey && profile.data && profile.data[roleKey]) || {}
+
   const displayData = {
-    ...profile.data.persona,
-    ...profile.data[roleKey],
-    first_name: profile.data.persona.first_name || profile.data.persona.firts_name
+    ...personaData,
+    ...roleData,
+    first_name: personaData.first_name || personaData.firts_name || profile.name?.split(' ')[0] || '',
+    last_name: personaData.last_name || profile.name?.split(' ').slice(1).join(' ') || ''
   }
 
   const roleLabel = {
@@ -118,11 +122,11 @@ const PerfilPage = () => {
                     </h3>
                     <form className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Input label="Nombres" value={displayData.first_name} disabled={true} />
-                            <Input label="Apellidos" value={displayData.last_name} disabled={true} />
-                            <Input label="Identificación" value={displayData.identification} disabled={true} className="bg-gray-50" />
-                            <Input label="Teléfono" value={displayData.phono} disabled={true} />
-                            <Input label="Dirección" value={displayData.direction} disabled={true} className="col-span-full" />
+                            <Input label="Nombres" value={displayData.first_name || ''} disabled={true} />
+                            <Input label="Apellidos" value={displayData.last_name || ''} disabled={true} />
+                            <Input label="Identificación" value={displayData.identification || ''} disabled={true} className="bg-gray-50" />
+                            <Input label="Teléfono" value={displayData.phono || ''} disabled={true} />
+                            <Input label="Dirección" value={displayData.direction || ''} disabled={true} className="col-span-full" />
                         </div>
 
                         <div className="pt-6 border-t border-gray-100">
@@ -134,17 +138,17 @@ const PerfilPage = () => {
                                 {/* Role specific inputs */}
                                 {profile.role === 'ENTRENADOR' && (
                                     <>
-                                    <Input label="Especialidad" value={displayData.especialidad} disabled={true} />
-                                    <Input label="Club Asignado" value={displayData.club_asignado} disabled={true} />
+                                    <Input label="Especialidad" value={displayData.especialidad || ''} disabled={true} />
+                                    <Input label="Club Asignado" value={displayData.club_asignado || ''} disabled={true} />
                                     </>
                                 )}
                                 {profile.role === 'ADMIN' && (
-                                    <Input label="Cargo" value={displayData.cargo} disabled={true} />
+                                    <Input label="Cargo" value={displayData.cargo || ''} disabled={true} />
                                 )}
                                 {profile.role === 'ESTUDIANTE_VINCULACION' && (
                                     <>
-                                    <Input label="Carrera" value={displayData.carrera} disabled={true} />
-                                    <Input label="Semestre" value={displayData.semestre} disabled={true} />
+                                    <Input label="Carrera" value={displayData.carrera || ''} disabled={true} />
+                                    <Input label="Semestre" value={displayData.semestre || ''} disabled={true} />
                                     </>
                                 )}
                             </div>

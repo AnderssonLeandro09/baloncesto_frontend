@@ -27,18 +27,29 @@ const Header = () => {
 
         {/* Acciones del header */}
         <div className="flex items-center space-x-4">
-          {/* Usuario */}
-          <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
-            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-              <FiUser className="w-4 h-4 text-primary-600" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-gray-700">{user?.name || 'Usuario'}</span>
-              <span className="text-xs text-gray-500 capitalize">{user?.role?.toLowerCase().replace('_', ' ')}</span>
-            </div>
+          {/* Usuario - Sección Clickable para Perfil */}
+          <div className="flex items-center pl-4 border-l border-gray-200 gap-3">
+            <button
+              onClick={() => navigate('/dashboard/perfil')}
+              className="flex items-center gap-3 hover:bg-gray-100 p-2 rounded-xl transition-all group"
+              title="Ver mi perfil"
+            >
+              <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                <FiUser className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-bold text-gray-700 group-hover:text-blue-600 transition-colors">
+                  {user?.name || 'Usuario'}
+                </span>
+                <span className="text-xs text-gray-500 capitalize">
+                  {user?.role?.toLowerCase().replace('_', ' ')}
+                </span>
+              </div>
+            </button>
+
             <button 
               onClick={handleLogout}
-              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+              className="p-2.5 text-red-500 hover:text-white hover:bg-red-500 rounded-xl transition-all shadow-sm hover:shadow-red-200"
               title="Cerrar Sesión"
             >
               <FiLogOut className="w-5 h-5" />

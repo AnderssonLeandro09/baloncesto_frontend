@@ -7,9 +7,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { FiSave, FiX, FiLoader, FiAlertCircle, FiUser, FiHeart, FiUsers, FiFileText, FiLock, FiInfo, FiAlertTriangle, FiCheckCircle } from 'react-icons/fi'
 import { Button, Card } from '../common'
-import { isValidEmail, isValidCedula, isValidPhone } from '../../utils/validators'
-import apiClient from '../../api/apiClient'
-import { ENDPOINTS } from '../../config/api.config'
+import { isValidEmail, isValidPhone } from '../../utils/validators'
+import { InscripcionService } from '../../api'
+import { 
+  MENSAJES_ERROR as INSCRIPCION_ERRORS,
+  esMenorDeEdad as utilEsMenorDeEdad,
+  calcularEdad as utilCalcularEdad,
+  determinarTipoInscripcion as utilDeterminarTipoInscripcion,
+  validarCedula,
+  LIMITES_EDAD,
+} from '../../utils/validacionesInscripcion'
 
 // ============================================================================
 // CONSTANTES - Deben coincidir EXACTAMENTE con el backend (models.py)
@@ -19,7 +26,7 @@ const TIPO_INSCRIPCION = {
   MAYOR_EDAD: 'MAYOR_EDAD',  // String exacto que espera el backend
 }
 
-const EDAD_MAYORIA = 18 // Edad legal para ser considerado mayor de edad
+const EDAD_MAYORIA = LIMITES_EDAD.MAYORIA // Usar la constante centralizada
 
 // Campos del representante (para limpiar cuando es mayor de edad)
 const CAMPOS_REPRESENTANTE = [
@@ -43,36 +50,10 @@ const sanitizeInput = (value) => {
     .trim()
 }
 
-// Función para calcular edad desde fecha de nacimiento
-const calcularEdad = (fechaNacimiento) => {
-  if (!fechaNacimiento) return null
-  const hoy = new Date()
-  const nacimiento = new Date(fechaNacimiento)
-  let edad = hoy.getFullYear() - nacimiento.getFullYear()
-  const mes = hoy.getMonth() - nacimiento.getMonth()
-  if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
-    edad--
-  }
-  return edad >= 0 ? edad : null
-}
-
-/**
- * Determina automáticamente el tipo de inscripción basado en la edad
- * SMART: El sistema calcula esto, el usuario no puede modificarlo
- */
-const determinarTipoInscripcion = (edad) => {
-  const edadNum = typeof edad === 'string' ? parseInt(edad, 10) : edad
-  if (isNaN(edadNum) || edadNum === null) return TIPO_INSCRIPCION.MAYOR_EDAD // Default
-  return edadNum < EDAD_MAYORIA ? TIPO_INSCRIPCION.MENOR_EDAD : TIPO_INSCRIPCION.MAYOR_EDAD
-}
-
-/**
- * Verifica si el atleta es menor de edad
- */
-const esMenorDeEdad = (edad) => {
-  const edadNum = typeof edad === 'string' ? parseInt(edad, 10) : edad
-  return !isNaN(edadNum) && edadNum < EDAD_MAYORIA
-}
+// Usar las funciones centralizadas de validacionesInscripcion
+const calcularEdad = utilCalcularEdad
+const determinarTipoInscripcion = utilDeterminarTipoInscripcion
+const esMenorDeEdad = utilEsMenorDeEdad
 
 // Fecha de hoy para restricciones
 const TODAY = new Date().toISOString().split('T')[0]
@@ -81,18 +62,29 @@ const InscripcionForm = ({
   inscripcion = null, 
   onSubmit, 
   onCancel, 
-  loading = false 
+  loading = false,
+  serverErrors = {} // Errores del servidor para mostrar en campos específicos
 }) => {
   const [submitError, setSubmitError] = useState(null)
   const [duplicateError, setDuplicateError] = useState(null) // Error específico de cédula duplicada
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   
-  // Estados para validación en tiempo real de cédula
+  // Estados para validación en tiempo real de cédula (Atleta)
   const [isCheckingCedula, setIsCheckingCedula] = useState(false)
   const [cedulaError, setCedulaError] = useState(null)
   const [cedulaValid, setCedulaValid] = useState(false)
-  
+
+  // Estados para validación en tiempo real de cédula (Representante)
+  const [isCheckingCedulaRep, setIsCheckingCedulaRep] = useState(false)
+  const [cedulaRepError, setCedulaRepError] = useState(null)
+  const [cedulaRepValid, setCedulaRepValid] = useState(false)
+
+  // Estado para advertencias de formato (Solo mientras escribe)
+  const [formatWarning, setFormatWarning] = useState({})
+
+  const [cedulaRepInfo, setCedulaRepInfo] = useState(null)
+
   // Estado del formulario
   const [formData, setFormData] = useState({
     // === DATOS DE PERSONA ===
@@ -126,6 +118,17 @@ const InscripcionForm = ({
     fecha_inscripcion: new Date().toISOString().split('T')[0],
     tipo_inscripcion: 'MAYOR_EDAD',
   })
+
+  // Variables derivadas del estado del formulario
+  const isMinor = esMenorDeEdad(formData.edad)
+  const tieneEdadCalculada = formData.edad !== '' && formData.edad !== null
+
+  // Combinar errores locales con errores del servidor
+  useEffect(() => {
+    if (serverErrors && Object.keys(serverErrors).length > 0) {
+      setErrors(prev => ({ ...prev, ...serverErrors }))
+    }
+  }, [serverErrors])
 
   // Cargar datos existentes en modo edición
   useEffect(() => {
@@ -185,12 +188,11 @@ const InscripcionForm = ({
     const timeoutId = setTimeout(async () => {
       setIsCheckingCedula(true)
       try {
-        const response = await apiClient.get(`${ENDPOINTS.INSCRIPCIONES}verificar-cedula/`, {
-          params: { dni: cedula }
-        })
+        // Usar el servicio centralizado en lugar de apiClient directamente
+        const response = await InscripcionService.verificarCedula(cedula)
         
-        if (response.data?.existe) {
-          setCedulaError('⚠️ Este atleta ya tiene una inscripción activa.')
+        if (response.existe) {
+          setCedulaError(INSCRIPCION_ERRORS.CEDULA_DUPLICADA)
           setCedulaValid(false)
         } else {
           setCedulaError(null)
@@ -209,6 +211,51 @@ const InscripcionForm = ({
     return () => clearTimeout(timeoutId)
   }, [formData.identification, inscripcion])
 
+  // === VALIDACIÓN EN TIEMPO REAL DE CÉDULA REPRESENTANTE ===
+  useEffect(() => {
+    const cedula = formData.cedula_representante?.replace(/\D/g, '')
+    
+    // Solo validar si es menor de edad y tiene 10 dígitos
+    if (!isMinor || cedula?.length !== 10) {
+      setCedulaRepError(null)
+      setCedulaRepValid(false)
+      return
+    }
+
+    // No validar si es la misma que la del atleta (eso es un error de negocio)
+    if (cedula === formData.identification) {
+      setCedulaRepError("La cédula del representante no puede ser igual a la del atleta")
+      setCedulaRepValid(false)
+      return
+    }
+    
+    const timeoutId = setTimeout(async () => {
+      setIsCheckingCedulaRep(true)
+      try {
+        const response = await InscripcionService.verificarCedulaRepresentante(cedula)
+        
+        if (response.existe) {
+          setCedulaRepInfo("Representante ya registrado en el sistema")
+          setCedulaRepValid(true) 
+        } else {
+          setCedulaRepInfo("Nueva identificación de representante")
+          setCedulaRepValid(true)
+        }
+      } catch (error) {
+        console.error('Error verificando cédula representante:', error)
+        setCedulaRepInfo(null)
+        setCedulaRepValid(true)
+      } finally {
+        setIsCheckingCedulaRep(false)
+      }
+    }, 500)
+    
+    return () => {
+      clearTimeout(timeoutId)
+      setCedulaRepInfo(null)
+    }
+  }, [formData.cedula_representante, formData.identification, isMinor])
+
   // ============================================================================
   // REGEX DE VALIDACIÓN - Bloqueo de caracteres no permitidos
   // ============================================================================
@@ -223,18 +270,22 @@ const InscripcionForm = ({
     // ========== VALIDACIÓN: SOLO LETRAS (Nombres, Apellidos, Parentesco) ==========
     const textOnlyFields = ['firts_name', 'last_name', 'nombre_representante', 'parentesco_representante']
     if (textOnlyFields.includes(name)) {
-      // Si el valor NO cumple el regex, NO actualizar (bloquear tecla)
-      if (!REGEX_SOLO_LETRAS.test(value)) {
-        return // Bloquea la entrada - no actualiza el estado
+      if (value && !REGEX_SOLO_LETRAS.test(value)) {
+        setFormatWarning(prev => ({ ...prev, [name]: "Solo se aceptan letras" }))
+        return // Bloquea la entrada
+      } else {
+        setFormatWarning(prev => ({ ...prev, [name]: null }))
       }
     }
 
     // ========== VALIDACIÓN: SOLO NÚMEROS (Cédula, Teléfono) ==========
     const numericFields = ['identification', 'phono', 'cedula_representante', 'telefono_representante']
     if (numericFields.includes(name)) {
-      // Si el valor NO cumple el regex, NO actualizar (bloquear tecla)
-      if (!REGEX_SOLO_NUMEROS.test(value)) {
-        return // Bloquea la entrada - no actualiza el estado
+      if (value && !REGEX_SOLO_NUMEROS.test(value)) {
+        setFormatWarning(prev => ({ ...prev, [name]: "Solo se aceptan números" }))
+        return // Bloquea la entrada
+      } else {
+        setFormatWarning(prev => ({ ...prev, [name]: null }))
       }
       // Limitar a 10 caracteres máximo
       updates[name] = value.slice(0, 10)
@@ -258,6 +309,13 @@ const InscripcionForm = ({
         const nuevoTipo = determinarTipoInscripcion(edadCalculada)
         updates.tipo_inscripcion = nuevoTipo
         
+        // Alerta inmediata de edad fuera de rango
+        if (edadCalculada < LIMITES_EDAD.MINIMA || edadCalculada > LIMITES_EDAD.MAXIMA) {
+          setFormatWarning(prev => ({ ...prev, fecha_nacimiento: `El atleta debe tener entre ${LIMITES_EDAD.MINIMA} y ${LIMITES_EDAD.MAXIMA} años` }))
+        } else {
+          setFormatWarning(prev => ({ ...prev, fecha_nacimiento: null }))
+        }
+
         // Limpiar campos del representante si pasa a mayor de edad
         if (nuevoTipo === TIPO_INSCRIPCION.MAYOR_EDAD) {
           CAMPOS_REPRESENTANTE.forEach(campo => {
@@ -279,89 +337,94 @@ const InscripcionForm = ({
     setSubmitError(null)
   }
   
-  const isMinor = esMenorDeEdad(formData.edad)
-  const tieneEdadCalculada = formData.edad !== '' && formData.edad !== null
-
   // Validar formulario
   const validateForm = () => {
     const newErrors = {}
     
-    // === PERSONA ===
+    // === PERSONA - Usar mensajes centralizados ===
     if (!formData.firts_name.trim()) {
-      newErrors.firts_name = 'El nombre es requerido'
+      newErrors.firts_name = INSCRIPCION_ERRORS.NOMBRE_REQUERIDO
     } else if (formData.firts_name.trim().length < 2) {
-      newErrors.firts_name = 'Mínimo 2 caracteres'
+      newErrors.firts_name = INSCRIPCION_ERRORS.NOMBRE_MUY_CORTO
     }
     
     if (!formData.last_name.trim()) {
-      newErrors.last_name = 'El apellido es requerido'
+      newErrors.last_name = INSCRIPCION_ERRORS.APELLIDO_REQUERIDO
     } else if (formData.last_name.trim().length < 2) {
-      newErrors.last_name = 'Mínimo 2 caracteres'
+      newErrors.last_name = INSCRIPCION_ERRORS.APELLIDO_MUY_CORTO
     }
     
+    // Validación de cédula: requerida y algoritmo módulo 10 (sincronizado con backend)
     if (!formData.identification.trim()) {
-      newErrors.identification = 'La cédula es requerida'
-    } else if (formData.identification.trim().length < 10) {
-      newErrors.identification = 'La cédula debe tener 10 dígitos'
-    } else if (formData.identification.trim().length !== 10) {
-      newErrors.identification = 'Debe tener exactamente 10 dígitos'
+      newErrors.identification = INSCRIPCION_ERRORS.CEDULA_REQUERIDA
+    } else if (!validarCedula(formData.identification.trim())) {
+      newErrors.identification = INSCRIPCION_ERRORS.CEDULA_INVALIDA
     }
     
-    if (formData.phono?.trim() && formData.phono.trim().length > 0 && formData.phono.trim().length < 10) {
-      newErrors.phono = 'El teléfono debe tener 10 dígitos'
+    // Teléfono: opcional, pero si se proporciona debe tener 10 dígitos
+    if (formData.phono?.trim() && formData.phono.trim().length !== 10) {
+      newErrors.phono = INSCRIPCION_ERRORS.TELEFONO_INVALIDO
     }
     
     // === ATLETA ===
     if (!formData.fecha_nacimiento) {
-      newErrors.fecha_nacimiento = 'Fecha requerida'
+      newErrors.fecha_nacimiento = INSCRIPCION_ERRORS.FECHA_NACIMIENTO_REQUERIDA
     } else {
       const edadCalculada = calcularEdad(formData.fecha_nacimiento)
-      if (edadCalculada < 5 || edadCalculada > 80) {
-        newErrors.fecha_nacimiento = 'La edad debe estar entre 5 y 80 años'
+      if (edadCalculada < LIMITES_EDAD.MINIMA || edadCalculada > LIMITES_EDAD.MAXIMA) {
+        newErrors.fecha_nacimiento = INSCRIPCION_ERRORS.EDAD_FUERA_RANGO
       }
     }
     
     if (!formData.sexo) {
-      newErrors.sexo = 'El sexo es requerido'
+      newErrors.sexo = INSCRIPCION_ERRORS.SEXO_REQUERIDO
     } else if (formData.sexo === 'O' && !formData.sexo_otro?.trim()) {
-      newErrors.sexo_otro = 'Especifique el sexo'
+      newErrors.sexo_otro = INSCRIPCION_ERRORS.SEXO_OTRO_REQUERIDO
     }
     
     // === INSCRIPCIÓN ===
-    if (!formData.fecha_inscripcion) newErrors.fecha_inscripcion = 'Fecha requerida'
+    if (!formData.fecha_inscripcion) {
+      newErrors.fecha_inscripcion = INSCRIPCION_ERRORS.FECHA_INSCRIPCION_REQUERIDA
+    } else {
+      // Validar que la fecha de inscripción no sea futura (sincronizado con backend)
+      const fechaInscripcion = new Date(formData.fecha_inscripcion)
+      const hoy = new Date()
+      hoy.setHours(0, 0, 0, 0)
+      if (fechaInscripcion > hoy) {
+        newErrors.fecha_inscripcion = INSCRIPCION_ERRORS.FECHA_INSCRIPCION_FUTURA
+      }
+    }
     
     // === REPRESENTANTE (Solo menores) ===
     if (isMinor) {
       if (!formData.nombre_representante?.trim()) {
-        newErrors.nombre_representante = 'Requerido para menores'
+        newErrors.nombre_representante = INSCRIPCION_ERRORS.NOMBRE_REPRESENTANTE_REQUERIDO
       } else if (formData.nombre_representante.trim().length < 3) {
-        newErrors.nombre_representante = 'Mínimo 3 caracteres'
+        newErrors.nombre_representante = INSCRIPCION_ERRORS.NOMBRE_REPRESENTANTE_MUY_CORTO
       }
       
+      // Cédula representante: validación completa con algoritmo módulo 10
       if (!formData.cedula_representante?.trim()) {
-        newErrors.cedula_representante = 'Requerido'
-      } else if (formData.cedula_representante.trim().length < 10) {
-        newErrors.cedula_representante = 'La cédula debe tener 10 dígitos'
-      } else if (formData.cedula_representante.trim().length !== 10) {
-        newErrors.cedula_representante = 'Debe tener 10 dígitos'
+        newErrors.cedula_representante = INSCRIPCION_ERRORS.CEDULA_REPRESENTANTE_REQUERIDA
+      } else if (!validarCedula(formData.cedula_representante.trim())) {
+        newErrors.cedula_representante = INSCRIPCION_ERRORS.CEDULA_REPRESENTANTE_INVALIDA
       }
       
       if (!formData.parentesco_representante?.trim()) {
-        newErrors.parentesco_representante = 'Requerido'
+        newErrors.parentesco_representante = INSCRIPCION_ERRORS.PARENTESCO_REQUERIDO
       } else if (formData.parentesco_representante.trim().length < 3) {
-        newErrors.parentesco_representante = 'Mínimo 3 caracteres'
+        newErrors.parentesco_representante = INSCRIPCION_ERRORS.PARENTESCO_MUY_CORTO
       }
       
+      // Teléfono representante: requerido para menores, exactamente 10 dígitos
       if (!formData.telefono_representante?.trim()) {
-        newErrors.telefono_representante = 'Requerido'
-      } else if (formData.telefono_representante.trim().length < 10) {
-        newErrors.telefono_representante = 'El teléfono debe tener 10 dígitos'
+        newErrors.telefono_representante = INSCRIPCION_ERRORS.TELEFONO_REPRESENTANTE_REQUERIDO
       } else if (formData.telefono_representante.trim().length !== 10) {
-        newErrors.telefono_representante = 'Debe tener 10 dígitos'
+        newErrors.telefono_representante = INSCRIPCION_ERRORS.TELEFONO_REPRESENTANTE_INVALIDO
       }
       
       if (formData.correo_representante?.trim() && !isValidEmail(formData.correo_representante.trim())) {
-        newErrors.correo_representante = 'Email inválido'
+        newErrors.correo_representante = INSCRIPCION_ERRORS.EMAIL_REPRESENTANTE_INVALIDO
       }
     }
     
@@ -423,42 +486,27 @@ const InscripcionForm = ({
     } catch (error) {
       console.error("Error al guardar inscripción:", error)
       
-      // Capturar mensaje del backend 
-      let errorMsg = "Ocurrió un error al guardar la inscripción."
+      // El error ya viene procesado con mensaje amigable del servicio
+      let errorMsg = error.message || INSCRIPCION_ERRORS.ERROR_SERVIDOR
       
-      if (error.response && error.response.data) {
-        // Prioridad al mensaje detallado del backend
-        if (error.response.data.detail) {
-          errorMsg = error.response.data.detail
-        } else if (error.response.data.message) {
-          errorMsg = error.response.data.message
-        } else if (typeof error.response.data === 'string') {
-          errorMsg = error.response.data
-        }
-      } else if (error.message) {
-        errorMsg = error.message
-      }
-      
-      // Limpiar formato técnico: remover corchetes y comillas
-      errorMsg = errorMsg
-        .replace(/^\["?|"?\]$/g, '')
-        .replace(/^\['|'\]$/g, '')
-        .trim()
-      
-      // Detectar error de cédula duplicada (UC-004 Curso Alterno 8)
+      // Detectar error de cédula duplicada
       const isDuplicateError = 
         errorMsg.toLowerCase().includes('ya se encuentra registrado') ||
         errorMsg.toLowerCase().includes('ya existe') ||
-        errorMsg.toLowerCase().includes('identification') ||
-        errorMsg.toLowerCase().includes('duplicado')
+        errorMsg.toLowerCase().includes('duplicad') ||
+        errorMsg.toLowerCase().includes('inscripción activa')
       
       if (isDuplicateError) {
-        // Mensaje amigable para el usuario
-        setDuplicateError('⚠️ Esta cédula ya cuenta con una inscripción activa. Por favor, verifique el número.')
-        setSubmitError(null) // No mostrar el error genérico
+        setDuplicateError(INSCRIPCION_ERRORS.CEDULA_DUPLICADA)
+        setSubmitError(null)
       } else {
         setSubmitError(errorMsg)
         setDuplicateError(null)
+      }
+      
+      // Si hay errores de campos específicos del servidor, mostrarlos
+      if (error.fieldErrors && Object.keys(error.fieldErrors).length > 0) {
+        setErrors(prev => ({ ...prev, ...error.fieldErrors }))
       }
     } finally {
       setIsSubmitting(false)
@@ -483,7 +531,8 @@ const InscripcionForm = ({
         } ${props.readOnly ? 'bg-gray-100 text-gray-500' : ''}`}
         {...props}
       />
-      {errors[name] && <p className="mt-0.5 text-xs text-red-600">{errors[name]}</p>}
+      {formatWarning[name] && <p className="mt-0.5 text-xs text-amber-600 font-medium flex items-center"><FiAlertTriangle className="w-3 h-3 mr-1" />{formatWarning[name]}</p>}
+      {errors[name] && !formatWarning[name] && <p className="mt-0.5 text-xs text-red-600">{errors[name]}</p>}
     </div>
   )
 
@@ -778,7 +827,51 @@ const InscripcionForm = ({
             
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {renderInput('nombre_representante', 'Nombre Completo', 'text', true)}
-              {renderInput('cedula_representante', 'Cédula', 'text', true, { maxLength: 10 })}
+              
+              {/* CÉDULA REPRESENTANTE CON VALIDACIÓN EN TIEMPO REAL */}
+              <div>
+                <label htmlFor="cedula_representante" className="block text-sm font-medium text-gray-700 mb-1">
+                  Cédula <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="cedula_representante"
+                    name="cedula_representante"
+                    value={formData.cedula_representante || ''}
+                    onChange={handleChange}
+                    disabled={loading}
+                    maxLength={10}
+                    placeholder="10 dígitos"
+                    className={`block w-full px-2 py-1.5 text-sm pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      cedulaRepError || errors.cedula_representante || formatWarning.cedula_representante
+                        ? 'border-red-400 bg-red-50' 
+                        : cedulaRepValid && formData.cedula_representante?.length === 10
+                          ? 'border-green-400 bg-green-50'
+                          : 'border-gray-300'
+                    }`}
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                    {isCheckingCedulaRep && <FiLoader className="w-3.5 h-3.5 text-blue-500 animate-spin" />}
+                    {!isCheckingCedulaRep && (cedulaRepError || formatWarning.cedula_representante) && <FiAlertCircle className="w-3.5 h-3.5 text-amber-500" />}
+                    {!isCheckingCedulaRep && cedulaRepValid && formData.cedula_representante?.length === 10 && !cedulaRepError && <FiCheckCircle className="w-3.5 h-3.5 text-green-500" />}
+                  </div>
+                </div>
+                {formatWarning.cedula_representante ? (
+                  <p className="mt-0.5 text-xs text-amber-600 font-medium">{formatWarning.cedula_representante}</p>
+                ) : cedulaRepError ? (
+                  <p className="mt-0.5 text-xs text-red-600 font-medium">{cedulaRepError}</p>
+                ) : errors.cedula_representante ? (
+                  <p className="mt-0.5 text-xs text-red-600">{errors.cedula_representante}</p>
+                ) : isCheckingCedulaRep ? (
+                  <p className="mt-0.5 text-xs text-blue-600">Verificando...</p>
+                ) : cedulaRepInfo ? (
+                  <p className="mt-0.5 text-xs text-green-600 font-medium">✓ {cedulaRepInfo}</p>
+                ) : cedulaRepValid && formData.cedula_representante?.length === 10 ? (
+                  <p className="mt-0.5 text-xs text-green-600">✓ Cédula validada</p>
+                ) : null}
+              </div>
+
               {renderInput('parentesco_representante', 'Parentesco', 'text', true)}
               {renderInput('telefono_representante', 'Teléfono', 'tel', true, { maxLength: 10 })}
               {renderInput('correo_representante', 'Correo', 'email')}
@@ -800,7 +893,7 @@ const InscripcionForm = ({
         <Button 
           type="submit" 
           variant="primary" 
-          disabled={loading || isSubmitting || !!cedulaError || isCheckingCedula} 
+          disabled={loading || isSubmitting || !!cedulaError || !!cedulaRepError || isCheckingCedula || isCheckingCedulaRep} 
           loading={loading || isSubmitting}
         >
           {(loading || isSubmitting) ? (

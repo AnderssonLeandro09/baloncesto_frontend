@@ -14,6 +14,8 @@ const PruebasAntropometricasPage = () => {
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [viewingPrueba, setViewingPrueba] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showToggleModal, setShowToggleModal] = useState(false);
+  const [toggleTarget, setToggleTarget] = useState(null);
 
   const {
     pruebas,
@@ -78,17 +80,19 @@ const PruebasAntropometricasPage = () => {
   };
 
   const handleToggleEstado = async (prueba) => {
-    const confirmMessage = prueba.estado
-      ? '¿Está seguro de desactivar esta prueba?'
-      : '¿Está seguro de activar esta prueba?';
+    setToggleTarget(prueba);
+    setShowToggleModal(true);
+  };
 
-    if (!window.confirm(confirmMessage)) return;
-
+  const confirmToggleEstado = async () => {
+    if (!toggleTarget) return;
     try {
-      setActionLoadingId(prueba.id);
-      await toggleEstadoPrueba(prueba.id);
+      setActionLoadingId(toggleTarget.id);
+      await toggleEstadoPrueba(toggleTarget.id);
       toast.success('Estado actualizado correctamente');
       await fetchPruebas();
+      setShowToggleModal(false);
+      setToggleTarget(null);
     } catch (error) {
       const message = error?.response?.data?.error || error?.response?.data?.detail || 'Error al actualizar el estado de la prueba';
       toast.error(message);
@@ -413,6 +417,52 @@ const PruebasAntropometricasPage = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal de Activar/Desactivar */}
+      <Modal
+        isOpen={showToggleModal}
+        onClose={() => {
+          setShowToggleModal(false);
+          setToggleTarget(null);
+        }}
+        title={toggleTarget?.estado ? 'Desactivar Prueba' : 'Activar Prueba'}
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            {toggleTarget?.estado
+              ? '¿Está seguro de desactivar esta prueba antropométrica?'
+              : '¿Está seguro de activar esta prueba antropométrica?'}
+          </p>
+
+          {toggleTarget && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+              <p className="font-medium text-gray-900">{getAtletaNombre(toggleTarget)}</p>
+              <p>Fecha: {new Date(toggleTarget.fecha_registro).toLocaleDateString('es-ES')}</p>
+              <p>Estado actual: {toggleTarget.estado ? 'Activo' : 'Inactivo'}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-2 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowToggleModal(false);
+                setToggleTarget(null);
+              }}
+              disabled={actionLoadingId === toggleTarget?.id}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmToggleEstado}
+              isLoading={actionLoadingId === toggleTarget?.id}
+            >
+              {toggleTarget?.estado ? 'Desactivar' : 'Activar'}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {error && (

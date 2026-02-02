@@ -481,6 +481,7 @@ const PruebasAntropometricasPage = () => {
                 currentPage={filtros.page || 1}
                 totalPages={Math.ceil(totalItems / filtros.pageSize) || 1}
                 onPageChange={(page) => setFiltros({ page })}
+                showPageSizeSelector={false}
               />
             </div>
           </Card>

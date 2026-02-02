@@ -233,6 +233,49 @@ const PruebasAntropometricasPage = () => {
     setFiltros({ estado, page: 1 });
   };
 
+  const handleFechaInicioFilter = (value) => {
+    const fecha = value || undefined;
+    // Si hay fecha fin, validar que fecha inicio no sea posterior
+    if (fecha && filtros.fecha_fin && new Date(fecha) > new Date(filtros.fecha_fin)) {
+      toast.error('La fecha de inicio no puede ser posterior a la fecha fin');
+      return;
+    }
+    // Validar rango máximo de 30 días
+    if (fecha && filtros.fecha_fin) {
+      const diffTime = Math.abs(new Date(filtros.fecha_fin) - new Date(fecha));
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays > 30) {
+        toast.error('El rango de fechas no puede ser mayor a 30 días');
+        return;
+      }
+    }
+    setFiltros({ fecha_inicio: fecha, page: 1 });
+  };
+
+  const handleFechaFinFilter = (value) => {
+    const fecha = value || undefined;
+    // Si hay fecha inicio, validar que fecha fin no sea anterior
+    if (fecha && filtros.fecha_inicio && new Date(fecha) < new Date(filtros.fecha_inicio)) {
+      toast.error('La fecha fin no puede ser anterior a la fecha de inicio');
+      return;
+    }
+    // Validar rango máximo de 30 días
+    if (fecha && filtros.fecha_inicio) {
+      const diffTime = Math.abs(new Date(fecha) - new Date(filtros.fecha_inicio));
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays > 30) {
+        toast.error('El rango de fechas no puede ser mayor a 30 días');
+        return;
+      }
+    }
+    setFiltros({ fecha_fin: fecha, page: 1 });
+  };
+
+  const handlePageSizeChange = (e) => {
+    const newPageSize = parseInt(e.target.value);
+    setFiltros({ pageSize: newPageSize, page: 1 });
+  };
+
   // Función auxiliar para obtener nombre del atleta en el modal de detalles
   const getAtletaNombre = (prueba) => {
     if (!prueba?.atleta) return 'N/A';
@@ -288,27 +331,68 @@ const PruebasAntropometricasPage = () => {
       {viewMode === 'table' ? (
         <>
           <Card>
-            <div className="flex flex-wrap gap-4 mb-4">
-              <Select
-                label="Filtrar por Atleta"
-                name="atletaFilter"
-                value={filtros.atleta?.toString() || '0'}
-                onChange={(e) => handleAtletaFilter(e.target.value)}
-                options={atletas}
-                className="w-64"
-              />
-              <Select
-                label="Filtrar por Estado"
-                name="estadoFilter"
-                value={filtros.estado === undefined ? '' : filtros.estado.toString()}
-                onChange={(e) => handleEstadoFilter(e.target.value)}
-                options={[
-                  { value: '', label: 'Todos' },
-                  { value: 'true', label: 'Activos' },
-                  { value: 'false', label: 'Inactivos' },
-                ]}
-                className="w-48"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4">
+              <div>
+                <Select
+                  label="Filtrar por Atleta"
+                  name="atletaFilter"
+                  value={filtros.atleta?.toString() || '0'}
+                  onChange={(e) => handleAtletaFilter(e.target.value)}
+                  options={atletas}
+                />
+              </div>
+              <div>
+                <Select
+                  label="Filtrar por Estado"
+                  name="estadoFilter"
+                  value={filtros.estado === undefined ? '' : filtros.estado.toString()}
+                  onChange={(e) => handleEstadoFilter(e.target.value)}
+                  options={[
+                    { value: '', label: 'Todos' },
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' },
+                  ]}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha Inicio
+                </label>
+                <input
+                  type="date"
+                  value={filtros.fecha_inicio || ''}
+                  onChange={(e) => handleFechaInicioFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha Fin
+                </label>
+                <input
+                  type="date"
+                  value={filtros.fecha_fin || ''}
+                  onChange={(e) => handleFechaFinFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <Select
+                  label="Mostrar por página"
+                  name="pageSize"
+                  value={filtros.pageSize?.toString() || '10'}
+                  onChange={handlePageSizeChange}
+                  options={[
+                    { value: '5', label: '5' },
+                    { value: '10', label: '10' },
+                    { value: '25', label: '25' },
+                    { value: '50', label: '50' },
+                  ]}
+                />
+              </div>
+            </div>
+            <div className="text-sm text-gray-600 mb-2">
+              <span className="font-medium">Rango de fechas:</span> Máximo 30 días entre fecha inicio y fin
             </div>
 
             <PruebaAntropometricaTable
@@ -322,10 +406,13 @@ const PruebasAntropometricasPage = () => {
               actionLoadingId={actionLoadingId}
             />
 
-            <div className="mt-4">
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Mostrando {pruebas.length > 0 ? ((filtros.page - 1) * filtros.pageSize) + 1 : 0} - {Math.min(filtros.page * filtros.pageSize, totalItems)} de {totalItems} resultados
+              </div>
               <Pagination
                 currentPage={filtros.page || 1}
-                totalPages={Math.ceil(totalItems / (filtros.page_size || 10)) || 1}
+                totalPages={Math.ceil(totalItems / filtros.pageSize) || 1}
                 onPageChange={(page) => setFiltros({ page })}
               />
             </div>

@@ -10,7 +10,15 @@ const usePruebaAntropometricaStore = create((set, get) => ({
   pruebaSeleccionada: null,
   loading: false,
   error: null,
-  filtros: { search: '', page: 1, pageSize: 10 },
+  filtros: { 
+    search: '', 
+    page: 1, 
+    pageSize: 10,
+    atleta: undefined,
+    estado: undefined,
+    fecha_inicio: undefined,
+    fecha_fin: undefined
+  },
   totalItems: 0,
 
   // Acciones

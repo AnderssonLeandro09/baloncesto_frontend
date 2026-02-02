@@ -136,8 +136,13 @@ const PruebasFisicasList = ({ pruebas, loading, onEdit, onViewDetail, onToggleEs
           )}
           <button
             onClick={() => onEdit(row)}
-            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-            title="Editar"
+            className={`p-1.5 rounded transition-colors ${
+              row.estado 
+                ? 'text-blue-600 hover:bg-blue-50' 
+                : 'text-gray-300 cursor-not-allowed'
+            }`}
+            title={row.estado ? 'Editar' : 'No se puede editar una prueba inactiva'}
+            disabled={!row.estado}
           >
             <FiEdit2 className="w-4 h-4" />
           </button>

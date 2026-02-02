@@ -23,15 +23,15 @@ const LoginPage = () => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
       if (!vals.email) {
-        errors.email = 'El email es requerido'
+        errors.email = 'El correo electrónico es requerido.'
       } else if (!emailRegex.test(vals.email)) {
-        errors.email = 'Ingrese un correo electrónico válido'
+        errors.email = 'Ingrese un correo electrónico válido (debe contener @).'
       }
 
       if (!vals.password) {
-        errors.password = 'La contraseña es requerida'
-      } else if (vals.password.length < 4) {
-        errors.password = 'La contraseña es muy corta'
+        errors.password = 'La contraseña es requerida.'
+      } else if (vals.password.trim().length === 0) {
+        errors.password = 'La contraseña no puede estar vacía.'
       }
       
       return errors
@@ -43,15 +43,15 @@ const LoginPage = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
     if (!values.email) {
-      newErrors.email = 'El email es requerido'
+      newErrors.email = 'El correo electrónico es requerido.'
     } else if (!emailRegex.test(values.email)) {
-      newErrors.email = 'Ingrese un correo electrónico válido'
+      newErrors.email = 'Ingrese un correo electrónico válido (debe contener @).'
     }
 
     if (!values.password) {
-      newErrors.password = 'La contraseña es requerida'
-    } else if (values.password.length < 4) {
-      newErrors.password = 'La contraseña es muy corta'
+      newErrors.password = 'La contraseña es requerida.'
+    } else if (values.password.trim().length === 0) {
+      newErrors.password = 'La contraseña no puede estar vacía.'
     }
 
     setErrors(newErrors)
@@ -77,7 +77,10 @@ const LoginPage = () => {
       const errorMsg = error.response?.data?.error
       
       if (errorMsg) {
-        if (errorMsg.toLowerCase().includes('contraseña') || errorMsg.toLowerCase().includes('clave')) {
+        // Verificar si es un error de cuenta inactiva (mostrar debajo del email)
+        if (errorMsg.toLowerCase().includes('inactiva') || errorMsg.toLowerCase().includes('desactivada')) {
+          setErrors({ email: errorMsg })
+        } else if (errorMsg.toLowerCase().includes('contraseña') || errorMsg.toLowerCase().includes('clave')) {
           setErrors({ password: errorMsg })
         } else if (errorMsg.toLowerCase().includes('correo') || errorMsg.toLowerCase().includes('email') || errorMsg.toLowerCase().includes('cuenta')) {
           setErrors({ email: errorMsg })
@@ -162,7 +165,7 @@ const LoginPage = () => {
                     <FiMail className={`h-5 w-5 transition-colors ${errors.email ? 'text-red-400' : 'text-white/30 group-focus-within:text-blue-400'}`} />
                   </div>
                   <input
-                    type="email"
+                    type="text"
                     name="email"
                     value={values.email}
                     onChange={handleChange}
@@ -172,7 +175,6 @@ const LoginPage = () => {
                         : 'border-white/10 focus:ring-blue-500/20 focus:border-blue-500/50 hover:border-white/20'
                     } text-white placeholder-white/25`}
                     placeholder="correo@ejemplo.com"
-                    required
                     disabled={loading}
                   />
                 </div>
@@ -204,7 +206,6 @@ const LoginPage = () => {
                         : 'border-white/10 focus:ring-blue-500/20 focus:border-blue-500/50 hover:border-white/20'
                     } text-white placeholder-white/25`}
                     placeholder="••••••••"
-                    required
                     disabled={loading}
                   />
                   <button

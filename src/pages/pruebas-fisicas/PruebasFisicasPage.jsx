@@ -255,7 +255,7 @@ const PruebasFisicasPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [semestreFilter, setSemestreFilter] = useState('todos')
   const [tipoFilter, setTipoFilter] = useState('todos')
-  const [estadoFilter, setEstadoFilter] = useState('todos')
+  const [estadoFilter, setEstadoFilter] = useState('activos')
   const [viewMode, setViewMode] = useState('tabla') // 'tabla', 'atletas', 'estadisticas'
   const hasLoadedRef = useRef(false)
   
@@ -312,6 +312,13 @@ const PruebasFisicasPage = () => {
   const handleEdit = (prueba) => {
     if (!canCreate) {
       toast.error('No tienes permisos para editar pruebas físicas', {
+        duration: 4000,
+        position: 'top-right',
+      })
+      return
+    }
+    if (!prueba.estado) {
+      toast.error('No se puede editar una prueba inactiva. Actívela primero.', {
         duration: 4000,
         position: 'top-right',
       })

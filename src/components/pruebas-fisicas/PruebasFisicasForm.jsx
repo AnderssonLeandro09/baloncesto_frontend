@@ -1,196 +1,106 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { Input, Select, Button } from '../common'
+import { Select, Button } from '../common'
 import { useForm } from '../../hooks'
 import { PruebaFisicaService } from '../../api'
 import toast from 'react-hot-toast'
-import { FiSearch, FiUser, FiCheck } from 'react-icons/fi'
+import { FiSearch, FiUser, FiAlertCircle } from 'react-icons/fi'
+import {
+  TIPOS_PRUEBA,
+  RANGOS_MAXIMOS,
+  UNIDADES_POR_TIPO,
+  LIMITES,
+  sanitizeText,
+  validarFormularioPruebaFisica,
+  MENSAJES_ERROR,
+} from '../../utils/validacionesPruebasFisicas'
 
 const TIPO_PRUEBA_OPTIONS = [
-  { value: 'FUERZA', label: 'Fuerza (Salto Horizontal)' },
-  { value: 'VELOCIDAD', label: 'Velocidad' },
-  { value: 'AGILIDAD', label: 'Agilidad (ZIGZAG)' },
+  { value: TIPOS_PRUEBA.FUERZA, label: 'Fuerza (Salto Horizontal)' },
+  { value: TIPOS_PRUEBA.VELOCIDAD, label: 'Velocidad' },
+  { value: TIPOS_PRUEBA.AGILIDAD, label: 'Agilidad (ZIGZAG)' },
 ]
 
-// Mapeo de unidades por tipo (basado en pruebas de baloncesto)
-const UNIDADES_POR_TIPO = {
-  'FUERZA': 'Centímetros (cm)',  // Salto horizontal
-  'VELOCIDAD': 'Segundos (seg)',  // 30 metros
-  'AGILIDAD': 'Segundos (seg)'  // Zigzag
-}
-
-// Función para sanitizar texto y prevenir XSS
-const sanitizeText = (text) => {
-  if (!text) return ''
-  return String(text)
-    .replace(/[<>"'&]/g, (char) => {
-      const entities = {
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;',
-        '&': '&amp;'
-      }
-      return entities[char]
-    })
-    .trim()
-    .substring(0, 1000) // Limitar longitud
-}
-
-// Función para calcular el semestre automáticamente desde una fecha
-const calcularSemestre = (fecha = new Date()) => {
-  const year = fecha.getFullYear()
-  const month = fecha.getMonth() + 1 // getMonth() es 0-indexed
-  const periodo = month <= 6 ? 1 : 2
-  return `${year}-${periodo}`
-}
-
-const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
+const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading, serverErrors = {} }) => {
   const [atletas, setAtletas] = useState([])
   const [loadingAtletas, setLoadingAtletas] = useState(false)
   const [atletaSearch, setAtletaSearch] = useState('')
   const [selectedAtletaData, setSelectedAtletaData] = useState(null)
   const [showAtletasList, setShowAtletasList] = useState(false)
+  const [resultadoAlerta, setResultadoAlerta] = useState(null)
 
-  // Validación en tiempo real del campo resultado
+  // Validación en tiempo real del campo resultado con alertas mejoradas
   const handleResultadoChange = (e) => {
     const value = e.target.value
     handleChange(e)
     
     if (value) {
       const resultado = parseFloat(value)
+      const tipoActual = values.tipo_prueba
+      const rangoMax = RANGOS_MAXIMOS[tipoActual] || 9999
       
-      if (resultado < 0) {
-        toast.error('No se permiten valores negativos', {
-          duration: 2000,
-          position: 'top-right',
+      if (resultado <= 0) {
+        setResultadoAlerta({
+          tipo: 'error',
+          mensaje: MENSAJES_ERROR.RESULTADO_NEGATIVO
         })
-      } else if (resultado > 9999) {
-        toast.error('Valor demasiado alto (máximo: 9,999)', {
-          duration: 2000,
-          position: 'top-right',
+      } else if (resultado > rangoMax) {
+        setResultadoAlerta({
+          tipo: 'error',
+          mensaje: MENSAJES_ERROR.RESULTADO_EXCEDE_RANGO(tipoActual, rangoMax)
         })
+      } else {
+        setResultadoAlerta(null)
       }
+    } else {
+      setResultadoAlerta(null)
     }
   }
 
-  // Validación en tiempo real del campo observaciones
+  // Validación en tiempo real del campo observaciones (límite 200) - bloquea si excede
   const handleObservacionesChange = (e) => {
     const value = e.target.value
-    handleChange(e)
     
-    if (value.length > 1000) {
-      toast.error('Las observaciones exceden el límite de 1000 caracteres', {
-        duration: 3000,
-        position: 'top-right',
-      })
-    } else if (value.length > 900) {
-      toast.warning(`Quedan ${1000 - value.length} caracteres disponibles`, {
-        duration: 2000,
-        position: 'top-right',
-      })
+    // Bloquear si excede límite de caracteres
+    if (value.length > LIMITES.MAX_OBSERVACIONES) {
+      return // No actualiza el valor
     }
+    
+    handleChange(e)
   }
 
-  const { values, errors, handleChange, handleSubmit } = useForm(
+  const { values, errors, setErrors, handleChange, handleSubmit } = useForm(
     {
       atleta: initialData?.atleta || '',
-      tipo_prueba: initialData?.tipo_prueba || 'FUERZA',
+      tipo_prueba: initialData?.tipo_prueba || TIPOS_PRUEBA.FUERZA,
       resultado: initialData?.resultado || '',
       observaciones: initialData?.observaciones || '',
       estado: initialData?.estado ?? true,
     },
     (vals) => {
-      const errs = {}
+      // Usar validaciones centralizadas
+      const validationErrors = validarFormularioPruebaFisica(vals, !!initialData)
       
-      // Validación de atleta
-      if (!vals.atleta) {
-        errs.atleta = 'Debe seleccionar un atleta'
-        toast.error('Debe seleccionar un atleta', {
+      // Mostrar toasts solo para errores que impiden el envío
+      if (Object.keys(validationErrors).length > 0) {
+        const firstError = Object.values(validationErrors)[0]
+        toast.error(firstError, {
           duration: 3000,
           position: 'top-right',
         })
       }
       
-      // Validación de tipo de prueba
-      if (!vals.tipo_prueba) {
-        errs.tipo_prueba = 'Debe seleccionar un tipo de prueba'
-        toast.error('Debe seleccionar un tipo de prueba', {
-          duration: 3000,
-          position: 'top-right',
-        })
-      } else if (!['FUERZA', 'VELOCIDAD', 'AGILIDAD'].includes(vals.tipo_prueba)) {
-        errs.tipo_prueba = 'Tipo de prueba no válido'
-        toast.error('El tipo de prueba seleccionado no es válido', {
-          duration: 3000,
-          position: 'top-right',
-        })
-      }
-      
-      // Validaciones de resultado
-      if (!vals.resultado) {
-        errs.resultado = 'El resultado es requerido'
-        toast.error('Debe ingresar el resultado de la prueba', {
-          duration: 3000,
-          position: 'top-right',
-        })
-      } else {
-        const resultado = parseFloat(vals.resultado)
-        
-        if (isNaN(resultado)) {
-          errs.resultado = 'El resultado debe ser un número válido'
-          toast.error('El resultado debe ser un número válido', {
-            duration: 3000,
-            position: 'top-right',
-          })
-        } else if (resultado < 0) {
-          errs.resultado = 'El resultado no puede ser negativo'
-          toast.error('No se permiten valores negativos', {
-            duration: 3000,
-            position: 'top-right',
-          })
-        } else if (resultado === 0) {
-          errs.resultado = 'El resultado debe ser mayor a 0'
-          toast.error('El resultado debe ser mayor a cero', {
-            duration: 3000,
-            position: 'top-right',
-          })
-        } else if (resultado > 9999) {
-          errs.resultado = 'El resultado excede el valor máximo permitido'
-          toast.error('El resultado excede el valor máximo (9,999)', {
-            duration: 3000,
-            position: 'top-right',
-          })
-        } else if (vals.tipo_prueba === 'FUERZA' && resultado > 500) {
-          toast.warning('Verifique el resultado: valores muy altos para salto horizontal', {
-            duration: 4000,
-            position: 'top-right',
-          })
-        } else if ((vals.tipo_prueba === 'VELOCIDAD' || vals.tipo_prueba === 'AGILIDAD') && resultado > 60) {
-          toast.warning('Verifique el resultado: tiempo muy alto para esta prueba', {
-            duration: 4000,
-            position: 'top-right',
-          })
-        }
-      }
-      
-      // Validar longitud de observaciones
-      if (vals.observaciones && vals.observaciones.length > 1000) {
-        errs.observaciones = 'Las observaciones no pueden exceder 1000 caracteres'
-        toast.error('Las observaciones son demasiado largas (máximo 1000 caracteres)', {
-          duration: 3000,
-          position: 'top-right',
-        })
-      }
-      
-      return errs
+      return validationErrors
     }
   )
 
+  // Sincronizar errores del servidor con el formulario
+  useEffect(() => {
+    if (serverErrors && Object.keys(serverErrors).length > 0) {
+      setErrors(prev => ({ ...prev, ...serverErrors }))
+    }
+  }, [serverErrors, setErrors])
+
   const handleFormSubmit = (vals) => {
-    // Obtener fecha local en formato YYYY-MM-DD
-    const today = new Date()
-    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-    
     // Transformar los datos al formato que espera el backend
     const payload = {
       atleta_id: parseInt(vals.atleta),
@@ -198,9 +108,8 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
       resultado: parseFloat(vals.resultado),
       observaciones: sanitizeText(vals.observaciones || ''),
       estado: Boolean(vals.estado),
-      fecha_registro: localDate
     }
-    
+
     onSubmit(payload)
   }
 
@@ -210,7 +119,7 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
       try {
         const data = await PruebaFisicaService.getAtletasHabilitados()
         // Map athletes to options for Select component
-        const options = data.map(a => ({
+        const options = (data || []).map(a => ({
           value: a.id,
           label: a.persona ? `${a.persona.nombre} ${a.persona.apellido} (${a.persona.identificacion})` : `Atleta ${a.id}`
         }))
@@ -226,14 +135,15 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
         }
         
         if (options.length === 0) {
-          toast.info('No hay atletas habilitados disponibles', {
+          toast('No hay atletas habilitados disponibles', {
+            icon: 'ℹ️',
             duration: 4000,
             position: 'top-right',
           })
         }
       } catch (error) {
         console.error('Error fetching atletas:', error)
-        toast.error('Error al cargar la lista de atletas', {
+        toast.error(error.message || 'No se pudo cargar la lista de atletas', {
           duration: 4000,
           position: 'top-right',
         })
@@ -243,7 +153,7 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
     }
 
     fetchAtletas()
-  }, [])
+  }, [initialData?.atleta])
 
   // Filtrar atletas según búsqueda
   const atletasFiltrados = useMemo(() => {
@@ -375,24 +285,50 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
         </div>
       </div>
 
-      <Input
-        label="Resultado"
-        name="resultado"
-        type="number"
-        step="0.01"
-        min="0"
-        value={values.resultado}
-        onChange={handleResultadoChange}
-        error={errors.resultado}
-        placeholder="Ej: 10.5"
-        disabled={loading}
-      />
+      <div className="flex flex-col space-y-1">
+        <label className="text-sm font-medium text-gray-700">Resultado</label>
+        <input
+          name="resultado"
+          type="number"
+          step="0.01"
+          min="0.01"
+          max={RANGOS_MAXIMOS[values.tipo_prueba] || 9999}
+          value={values.resultado}
+          onChange={handleResultadoChange}
+          disabled={loading}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${
+            errors.resultado ? 'border-red-500 bg-red-50' : 'border-gray-300'
+          }`}
+          placeholder={`Ej: ${values.tipo_prueba === 'FUERZA' ? '250 (cm)' : '4.5 (seg)'}`}
+        />
+        {/* Indicador de rango permitido */}
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Mínimo: 0.01</span>
+          <span>Máximo: {RANGOS_MAXIMOS[values.tipo_prueba] || 'N/A'} {values.tipo_prueba === 'FUERZA' ? 'cm' : 'seg'}</span>
+        </div>
+        {errors.resultado && (
+          <div className="flex items-center gap-1 text-red-500 text-xs bg-red-50 px-2 py-1 rounded">
+            <span></span>
+            <span>{errors.resultado}</span>
+          </div>
+        )}
+        {/* Alerta visual de validación en tiempo real */}
+        {resultadoAlerta && (
+          <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-md mt-1 ${
+            resultadoAlerta.tipo === 'error' 
+              ? 'bg-red-100 text-red-700 border border-red-300' 
+              : 'bg-green-100 text-green-700 border border-green-300'
+          }`}>
+            <span>{resultadoAlerta.mensaje}</span>
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-col space-y-1">
         <label className="text-sm font-medium text-gray-700">
           Observaciones 
-          <span className="text-xs text-gray-500 ml-2">
-            ({values.observaciones?.length || 0}/1000)
+          <span className={`text-xs ml-2 ${(values.observaciones?.length || 0) > 180 ? 'text-amber-500 font-medium' : 'text-gray-500'}`}>
+            ({values.observaciones?.length || 0}/200)
           </span>
         </label>
         <textarea
@@ -400,10 +336,17 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading }) => {
           value={values.observaciones}
           onChange={handleObservacionesChange}
           disabled={loading}
-          maxLength={1000}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] disabled:bg-gray-100 disabled:cursor-not-allowed"
-          placeholder="Detalles adicionales de la prueba..."
+          maxLength={200}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] disabled:bg-gray-100 disabled:cursor-not-allowed ${
+            (values.observaciones?.length || 0) >= 200 ? 'border-red-300 bg-red-50' : 'border-gray-300'
+          }`}
+          placeholder="Detalles adicionales de la prueba (máx. 200 caracteres)..."
         />
+        {(values.observaciones?.length || 0) >= 180 && (
+          <span className="text-xs text-amber-600">
+            {200 - (values.observaciones?.length || 0)} caracteres restantes
+          </span>
+        )}
         {errors.observaciones && (
           <span className="text-xs text-red-500">{errors.observaciones}</span>
         )}

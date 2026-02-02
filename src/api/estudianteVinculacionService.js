@@ -1,10 +1,147 @@
 /**
  * Servicio para gestión de Estudiantes de Vinculación
  * Conecta con el endpoint /api/v1/estudiantes-vinculacion del backend
+ * 
+ * Formato de respuesta del backend:
+ * { msg: string, data: any, code: number, status: 'success' | 'error' }
  */
 
 import apiClient from './apiClient'
 import { ENDPOINTS } from '../config/api.config'
+import { getEstudianteFriendlyMessage, getFieldLabel } from '../utils/estudianteVinculacionValidators'
+
+/**
+ * Procesa la respuesta exitosa del backend
+ * @param {Object} response - Respuesta de axios
+ * @returns {Object} Datos procesados
+ */
+const processResponse = (response) => {
+  const { data } = response
+
+  // El backend ahora envía { msg, data, code, status }
+  if (data && typeof data === 'object' && 'status' in data) {
+    return {
+      success: data.status === 'success',
+      message: data.msg || '',
+      data: data.data,
+      code: data.code
+    }
+  }
+
+  // Fallback para respuestas antiguas
+  return {
+    success: true,
+    message: '',
+    data: data,
+    code: response.status
+  }
+}
+
+/**
+ * Procesa errores del backend y extrae información útil
+ * @param {Error} error - Error de axios
+ * @returns {Object} Error procesado con detalles
+ */
+const processError = (error) => {
+  // Error de red o sin respuesta
+  if (!error.response) {
+    return {
+      success: false,
+      message: 'Error de conexión. Por favor, verifica tu conexión a internet.',
+      data: null,
+      code: 0,
+      fieldErrors: {}
+    }
+  }
+
+  const { data, status } = error.response
+
+  // Procesar respuesta con formato { msg, data, code, status }
+  if (data && typeof data === 'object' && 'status' in data) {
+    const fieldErrors = {}
+    let mainMessage = data.msg || 'Ocurrió un error'
+
+    // Si data.data contiene errores de campo
+    if (data.data && typeof data.data === 'object') {
+      // Procesar errores de campos anidados (persona, estudiante)
+      Object.entries(data.data).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          fieldErrors[key] = value.join('. ')
+        } else if (typeof value === 'object' && value !== null) {
+          // Errores anidados (ej: persona.identification)
+          Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+            const fullKey = `${key}.${nestedKey}`
+            fieldErrors[nestedKey] = Array.isArray(nestedValue) 
+              ? nestedValue.join('. ') 
+              : String(nestedValue)
+          })
+        } else if (typeof value === 'string') {
+          fieldErrors[key] = value
+        }
+      })
+    }
+
+    // Generar mensaje amigable
+    if (Object.keys(fieldErrors).length > 0) {
+      const firstField = Object.keys(fieldErrors)[0]
+      const firstError = fieldErrors[firstField]
+      const fieldLabel = getFieldLabel(firstField)
+      mainMessage = `${fieldLabel}: ${firstError}`
+    }
+
+    return {
+      success: false,
+      message: getEstudianteFriendlyMessage(mainMessage),
+      data: data.data,
+      code: data.code || status,
+      fieldErrors
+    }
+  }
+
+  // Procesar errores de validación de Django REST Framework
+  if (data && typeof data === 'object') {
+    const fieldErrors = {}
+    let errorMessages = []
+
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'detail') {
+        errorMessages.push(String(value))
+      } else if (Array.isArray(value)) {
+        fieldErrors[key] = value.join('. ')
+        errorMessages.push(`${getFieldLabel(key)}: ${value.join('. ')}`)
+      } else if (typeof value === 'object' && value !== null) {
+        // Errores anidados
+        Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+          const errorText = Array.isArray(nestedValue) 
+            ? nestedValue.join('. ') 
+            : String(nestedValue)
+          fieldErrors[nestedKey] = errorText
+          errorMessages.push(`${getFieldLabel(nestedKey)}: ${errorText}`)
+        })
+      } else {
+        fieldErrors[key] = String(value)
+        errorMessages.push(`${getFieldLabel(key)}: ${value}`)
+      }
+    })
+
+    return {
+      success: false,
+      message: getEstudianteFriendlyMessage(errorMessages[0] || 'Error de validación'),
+      data: null,
+      code: status,
+      fieldErrors
+    }
+  }
+
+  // Error genérico
+  return {
+    success: false,
+    message: getEstudianteFriendlyMessage(`Error ${status}: ${error.message}`),
+    data: null,
+    code: status,
+    fieldErrors: {}
+  }
+}
 
 const EstudianteVinculacionService = {
   /**
@@ -12,8 +149,12 @@ const EstudianteVinculacionService = {
    * @param {Object} params - Parámetros de filtro y paginación
    */
   getAll: async (params = {}) => {
-    const response = await apiClient.get(ENDPOINTS.ESTUDIANTES_VINCULACION, { params })
-    return response.data
+    try {
+      const response = await apiClient.get(ENDPOINTS.ESTUDIANTES_VINCULACION, { params })
+      return processResponse(response)
+    } catch (error) {
+      return processError(error)
+    }
   },
 
   /**
@@ -21,8 +162,12 @@ const EstudianteVinculacionService = {
    * @param {number} id - ID del estudiante
    */
   getById: async (id) => {
-    const response = await apiClient.get(`${ENDPOINTS.ESTUDIANTES_VINCULACION}${id}/`)
-    return response.data
+    try {
+      const response = await apiClient.get(`${ENDPOINTS.ESTUDIANTES_VINCULACION}${id}/`)
+      return processResponse(response)
+    } catch (error) {
+      return processError(error)
+    }
   },
 
   /**
@@ -30,8 +175,12 @@ const EstudianteVinculacionService = {
    * @param {Object} data - Datos del estudiante
    */
   create: async (data) => {
-    const response = await apiClient.post(ENDPOINTS.ESTUDIANTES_VINCULACION, data)
-    return response.data
+    try {
+      const response = await apiClient.post(ENDPOINTS.ESTUDIANTES_VINCULACION, data)
+      return processResponse(response)
+    } catch (error) {
+      return processError(error)
+    }
   },
 
   /**
@@ -40,8 +189,12 @@ const EstudianteVinculacionService = {
    * @param {Object} data - Datos a actualizar
    */
   update: async (id, data) => {
-    const response = await apiClient.put(`${ENDPOINTS.ESTUDIANTES_VINCULACION}${id}/`, data)
-    return response.data
+    try {
+      const response = await apiClient.put(`${ENDPOINTS.ESTUDIANTES_VINCULACION}${id}/`, data)
+      return processResponse(response)
+    } catch (error) {
+      return processError(error)
+    }
   },
 
   /**
@@ -49,8 +202,12 @@ const EstudianteVinculacionService = {
    * @param {number} id - ID del estudiante
    */
   delete: async (id) => {
-    const response = await apiClient.delete(`${ENDPOINTS.ESTUDIANTES_VINCULACION}${id}/`)
-    return response.data
+    try {
+      const response = await apiClient.delete(`${ENDPOINTS.ESTUDIANTES_VINCULACION}${id}/`)
+      return processResponse(response)
+    } catch (error) {
+      return processError(error)
+    }
   },
 
   /**
@@ -58,8 +215,12 @@ const EstudianteVinculacionService = {
    * @param {string} carrera - Nombre de la carrera
    */
   getByCarrera: async (carrera) => {
-    const response = await apiClient.get(ENDPOINTS.ESTUDIANTES_VINCULACION, { params: { carrera } })
-    return response.data
+    try {
+      const response = await apiClient.get(ENDPOINTS.ESTUDIANTES_VINCULACION, { params: { carrera } })
+      return processResponse(response)
+    } catch (error) {
+      return processError(error)
+    }
   },
 }
 

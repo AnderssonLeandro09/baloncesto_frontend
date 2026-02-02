@@ -6,32 +6,45 @@ import { UsuariosTable, UsuarioDetalleModal } from '../../components/usuarios'
 import { useEstudianteVinculacionStore } from '../../stores'
 import { useModal } from '../../hooks'
 import EstudianteVinculacionForm from './EstudianteVinculacionForm'
+import { getEstudianteFriendlyMessage } from '../../utils/estudianteVinculacionValidators'
 
 const EstudiantesVinculacionList = () => {
   const { 
     estudiantes, 
-    loading, 
+    loading,
+    fieldErrors,
     fetchEstudiantes, 
     deleteEstudiante,
-    setEstudianteSeleccionado 
+    setEstudianteSeleccionado,
+    clearErrors
   } = useEstudianteVinculacionStore()
   
   const deleteModal = useModal()
   const detalleModal = useModal()
   const formModal = useModal()
   const [estudianteDetalle, setEstudianteDetalle] = useState(null)
+  const [serverErrors, setServerErrors] = useState({})
 
   useEffect(() => {
     fetchEstudiantes()
   }, [fetchEstudiantes])
 
+  // Sincronizar errores del store con el estado local
+  useEffect(() => {
+    setServerErrors(fieldErrors || {})
+  }, [fieldErrors])
+
   const handleNew = () => {
     setEstudianteSeleccionado(null)
+    clearErrors()
+    setServerErrors({})
     formModal.open()
   }
 
   const handleEdit = (estudiante) => {
     setEstudianteSeleccionado(estudiante)
+    clearErrors()
+    setServerErrors({})
     formModal.open()
   }
 
@@ -50,12 +63,19 @@ const EstudiantesVinculacionList = () => {
     if (estudianteSeleccionado) {
       const result = await deleteEstudiante(estudianteSeleccionado.estudiante.id)
       if (result.success) {
-        toast.success('Estudiante dado de baja exitosamente')
+        toast.success(result.message || 'Estudiante dado de baja exitosamente')
         deleteModal.close()
       } else {
-        toast.error(result.error || 'Error al dar de baja al estudiante')
+        const friendlyMessage = getEstudianteFriendlyMessage(result.error)
+        toast.error(friendlyMessage || 'No se pudo dar de baja al estudiante')
       }
     }
+  }
+
+  const handleFormClose = () => {
+    clearErrors()
+    setServerErrors({})
+    formModal.close()
   }
 
   const columns = [
@@ -150,7 +170,8 @@ const EstudiantesVinculacionList = () => {
 
       <EstudianteVinculacionForm 
         isOpen={formModal.isOpen} 
-        onClose={formModal.close} 
+        onClose={handleFormClose}
+        serverErrors={serverErrors}
       />
 
       <UsuarioDetalleModal

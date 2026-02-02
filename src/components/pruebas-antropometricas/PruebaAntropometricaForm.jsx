@@ -320,7 +320,13 @@ const PruebaAntropometricaForm = ({
   }, [initialData, reset]);
 
   const onFormSubmit = async (data) => {
-    await onSubmit(data);
+    // Si es edición, no enviar atleta ni fecha_registro
+    if (isEditing) {
+      const { atleta, fecha_registro, ...editData } = data;
+      await onSubmit(editData);
+    } else {
+      await onSubmit(data);
+    }
   };
 
   return (

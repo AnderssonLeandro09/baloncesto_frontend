@@ -1,6 +1,9 @@
 /**
  * Página principal de Inscripciones
  * Gestión completa de inscripciones de atletas
+ * 
+ * Adaptado para el nuevo formato de respuesta del backend
+ * con mensajes amigables para el usuario
  */
 
 import { useEffect, useState } from 'react'
@@ -9,6 +12,7 @@ import { toast } from 'react-hot-toast'
 import { Card, Button, Modal, ConfirmDialog } from '../../components/common'
 import { InscripcionList, InscripcionForm } from '../../components/inscripciones'
 import useInscripcionStore from '../../stores/inscripcionStore'
+import { MENSAJES_EXITO } from '../../utils/validacionesInscripcion'
 
 const InscripcionesPage = () => {
   // Estado del store
@@ -23,6 +27,7 @@ const InscripcionesPage = () => {
     setInscripcionSeleccionada,
     inscripcionSeleccionada,
     clearInscripcionSeleccionada,
+    clearErrors,
   } = useInscripcionStore()
 
   // Estado local de la página
@@ -30,34 +35,45 @@ const InscripcionesPage = () => {
   const [showStatusDialog, setShowStatusDialog] = useState(false)
   const [inscripcionToToggle, setInscripcionToToggle] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [formErrors, setFormErrors] = useState({})
+  const [isViewMode, setIsViewMode] = useState(false)
 
   // Cargar inscripciones al montar
   useEffect(() => {
     fetchInscripciones()
   }, [fetchInscripciones])
 
-  // Mostrar errores del store
+  // Mostrar errores del store (solo si no estamos en el modal)
   useEffect(() => {
-    if (error) {
+    if (error && !showModal) {
       toast.error(error)
     }
-  }, [error])
+  }, [error, showModal])
 
   // Abrir modal para crear
   const handleCreate = () => {
     clearInscripcionSeleccionada()
+    clearErrors()
+    setFormErrors({})
+    setIsViewMode(false)
     setShowModal(true)
   }
 
   // Abrir modal para editar
   const handleEdit = (inscripcion) => {
     setInscripcionSeleccionada(inscripcion)
+    clearErrors()
+    setFormErrors({})
+    setIsViewMode(false)
     setShowModal(true)
   }
 
-  // Ver detalles (por ahora abre edición)
+  // Ver detalles (modo solo lectura)
   const handleView = (inscripcion) => {
     setInscripcionSeleccionada(inscripcion)
+    clearErrors()
+    setFormErrors({})
+    setIsViewMode(true)
     setShowModal(true)
   }
 
@@ -75,16 +91,28 @@ const InscripcionesPage = () => {
     const result = await toggleEstado(id)
 
     if (result.success) {
+      // Usar el mensaje amigable del store
       toast.success(result.mensaje)
       setShowStatusDialog(false)
       setInscripcionToToggle(null)
     } else {
-      toast.error(result.error || 'Error al cambiar el estado')
+      // Mostrar mensaje de error amigable
+      toast.error(result.mensaje || 'No se pudo cambiar el estado de la inscripción')
     }
+  }
+
+  // Cerrar modal y limpiar errores
+  const handleCloseModal = () => {
+    setShowModal(false)
+    clearInscripcionSeleccionada()
+    clearErrors()
+    setFormErrors({})
+    setIsViewMode(false)
   }
 
   // Manejar submit del formulario
   const handleSubmit = async (data) => {
+    setFormErrors({})
     let result
 
     if (inscripcionSeleccionada) {
@@ -93,23 +121,30 @@ const InscripcionesPage = () => {
       result = await updateInscripcion(id, data)
       
       if (result.success) {
-        toast.success('Inscripción actualizada exitosamente')
-        setShowModal(false)
-        clearInscripcionSeleccionada()
+        toast.success(result.mensaje || MENSAJES_EXITO.ACTUALIZAR)
+        handleCloseModal()
         fetchInscripciones()
       } else {
-        toast.error(result.error || 'Error al actualizar la inscripción')
+        // Si hay errores de campo, pasarlos al formulario
+        if (result.fieldErrors && Object.keys(result.fieldErrors).length > 0) {
+          setFormErrors(result.fieldErrors)
+        }
+        toast.error(result.mensaje || 'No se pudo actualizar la inscripción')
       }
     } else {
       // Crear nueva inscripción
       result = await createInscripcion(data)
       
       if (result.success) {
-        toast.success('Inscripción creada exitosamente')
-        setShowModal(false)
+        toast.success(result.mensaje || MENSAJES_EXITO.CREAR)
+        handleCloseModal()
         fetchInscripciones()
       } else {
-        toast.error(result.error || 'Error al crear la inscripción')
+        // Si hay errores de campo, pasarlos al formulario
+        if (result.fieldErrors && Object.keys(result.fieldErrors).length > 0) {
+          setFormErrors(result.fieldErrors)
+        }
+        toast.error(result.mensaje || 'No se pudo crear la inscripción')
       }
     }
   }
@@ -190,24 +225,20 @@ const InscripcionesPage = () => {
         loading={loading}
       />
 
-      {/* Modal de creación/edición */}
+      {/* Modal de creación/edición/visualización */}
       <Modal
         isOpen={showModal}
-        onClose={() => {
-          setShowModal(false)
-          clearInscripcionSeleccionada()
-        }}
-        title={inscripcionSeleccionada ? 'Editar Inscripción' : 'Nueva Inscripción'}
+        onClose={handleCloseModal}
+        title={isViewMode ? 'Detalles de Inscripción' : (inscripcionSeleccionada ? 'Editar Inscripción' : 'Nueva Inscripción')}
         size="xl"
       >
         <InscripcionForm
           inscripcion={inscripcionSeleccionada}
           onSubmit={handleSubmit}
-          onCancel={() => {
-            setShowModal(false)
-            clearInscripcionSeleccionada()
-          }}
+          onCancel={handleCloseModal}
           loading={loading}
+          serverErrors={formErrors}
+          readOnly={isViewMode}
         />
       </Modal>
 

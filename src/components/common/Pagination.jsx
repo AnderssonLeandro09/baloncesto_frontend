@@ -40,32 +40,8 @@ const Pagination = ({
 
   return (
     <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
-      {/* Info de items */}
-      <div className="flex items-center">
-        <p className="text-sm text-gray-700">
-          Mostrando <span className="font-medium">{startItem}</span> a{' '}
-          <span className="font-medium">{endItem}</span> de{' '}
-          <span className="font-medium">{totalItems}</span> resultados
-        </p>
-        
-        {/* Selector de tamaño de página */}
-        {showPageSizeSelector && (
-          <select
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="ml-4 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            {PAGINATION.pageSizeOptions.map((size) => (
-              <option key={size} value={size}>
-                {size} por página
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
-
       {/* Controles de paginación */}
-      <nav className="flex items-center space-x-1">
+      <nav className="flex items-center space-x-1 ml-auto">
         {/* Botón anterior */}
         <button
           onClick={() => onPageChange(currentPage - 1)}

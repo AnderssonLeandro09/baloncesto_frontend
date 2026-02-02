@@ -26,111 +26,118 @@ const ENVERGADURA_RATIO_MIN = VALIDACIONES_ANTROPOMETRICAS.ENVERGADURA.RATIO_MIN
 const ENVERGADURA_RATIO_MAX = VALIDACIONES_ANTROPOMETRICAS.ENVERGADURA.RATIO_MAX;
 const FECHA_MAX_ANTIGUEDAD_ANOS = VALIDACIONES_ANTROPOMETRICAS.FECHA.MAX_ANTIGUEDAD_ANOS;
 
-const schema = yup.object({
-  atleta: yup
-    .number()
-    .typeError(MENSAJES_ERROR.ATLETA.REQUERIDO)
-    .transform((value, originalValue) => {
-      return originalValue === '' || originalValue === null ? undefined : value;
-    })
-    .positive(MENSAJES_ERROR.ATLETA.REQUERIDO)
-    .required(MENSAJES_ERROR.ATLETA.REQUERIDO),
-  
-  fecha_registro: yup
-    .string()
-    .required(MENSAJES_ERROR.FECHA.REQUERIDA)
-    .test(
-      'fecha-no-futura',
-      MENSAJES_ERROR.FECHA.FUTURA,
-      function (value) {
-        if (!value) return true;
-        const fecha = new Date(value);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        return fecha <= hoy;
-      }
-    )
-    .test(
-      'fecha-no-antigua',
-      MENSAJES_ERROR.FECHA.ANTIGUA(getFechaMinima()),
-      function (value) {
-        if (!value) return true;
-        const fecha = new Date(value);
-        const fechaMinima = new Date(getFechaMinima());
-        return fecha >= fechaMinima;
-      }
-    ),
-  
-  peso: yup
-    .number()
-    .typeError(MENSAJES_ERROR.PESO.REQUERIDO)
-    .transform(toDecimal)
-    .required(MENSAJES_ERROR.PESO.REQUERIDO)
-    .test('peso-positivo', MENSAJES_ERROR.PESO.POSITIVO, value => value > 0)
-    .test('peso-minimo', MENSAJES_ERROR.PESO.MINIMO, value => value >= PESO_MIN)
-    .test('peso-maximo', MENSAJES_ERROR.PESO.MAXIMO, value => value <= PESO_MAX),
-  
-  estatura: yup
-    .number()
-    .typeError(MENSAJES_ERROR.ESTATURA.REQUERIDO)
-    .transform(toDecimal)
-    .required(MENSAJES_ERROR.ESTATURA.REQUERIDO)
-    .test('estatura-positiva', MENSAJES_ERROR.ESTATURA.POSITIVA, value => value > 0)
-    .test('estatura-minima', MENSAJES_ERROR.ESTATURA.MINIMA, value => value >= ESTATURA_MIN)
-    .test('estatura-maxima', MENSAJES_ERROR.ESTATURA.MAXIMA, value => value <= ESTATURA_MAX),
-  
-  altura_sentado: yup
-    .number()
-    .typeError(MENSAJES_ERROR.ALTURA_SENTADO.REQUERIDO)
-    .transform(toDecimal)
-    .required(MENSAJES_ERROR.ALTURA_SENTADO.REQUERIDO)
-    .test('altura-sentado-positiva', MENSAJES_ERROR.ALTURA_SENTADO.POSITIVA, value => value > 0)
-    .test('altura-sentado-minima', MENSAJES_ERROR.ALTURA_SENTADO.MINIMA, value => value >= ALTURA_SENTADO_MIN)
-    .test('altura-sentado-maxima', MENSAJES_ERROR.ALTURA_SENTADO.MAXIMA, value => value <= ALTURA_SENTADO_MAX)
-    .test(
-      'altura-sentado-menor-estatura',
-      MENSAJES_ERROR.ALTURA_SENTADO.MAYOR_ESTATURA,
-      function (value) {
-        const estatura = this.parent.estatura;
-        if (typeof value !== 'number' || typeof estatura !== 'number') return true;
-        return value <= estatura;
-      }
-    )
-    .test(
-      'altura-sentado-proporcion',
-      MENSAJES_ERROR.ALTURA_SENTADO.PROPORCION,
-      function (value) {
-        const estatura = this.parent.estatura;
-        if (typeof value !== 'number' || typeof estatura !== 'number') return true;
-        return value >= estatura * ALTURA_SENTADO_RATIO_MIN;
-      }
-    ),
-  
-  envergadura: yup
-    .number()
-    .typeError(MENSAJES_ERROR.ENVERGADURA.REQUERIDO)
-    .transform(toDecimal)
-    .required(MENSAJES_ERROR.ENVERGADURA.REQUERIDO)
-    .test('envergadura-positiva', MENSAJES_ERROR.ENVERGADURA.POSITIVA, value => value > 0)
-    .test('envergadura-minima', MENSAJES_ERROR.ENVERGADURA.MINIMA, value => value >= ENVERGADURA_MIN)
-    .test('envergadura-maxima', MENSAJES_ERROR.ENVERGADURA.MAXIMA, value => value <= ENVERGADURA_MAX)
-    .test(
-      'envergadura-ratio',
-      function (value) {
-        const estatura = this.parent.estatura;
-        if (typeof value !== 'number' || typeof estatura !== 'number') return true;
-        const ratio = value / estatura;
-        if (ratio < ENVERGADURA_RATIO_MIN || ratio > ENVERGADURA_RATIO_MAX) {
-          return this.createError({
-            message: MENSAJES_ERROR.ENVERGADURA.RATIO(ratio)
-          });
+// Función para crear el schema dinámicamente según si es edición o creación
+const createSchema = (isEditing = false) => {
+  return yup.object({
+    atleta: isEditing
+      ? yup.number() // En edición solo validar que sea número, pero no es requerido cambiar
+      : yup
+          .number()
+          .typeError(MENSAJES_ERROR.ATLETA.REQUERIDO)
+          .transform((value, originalValue) => {
+            return originalValue === '' || originalValue === null ? undefined : value;
+          })
+          .positive(MENSAJES_ERROR.ATLETA.REQUERIDO)
+          .required(MENSAJES_ERROR.ATLETA.REQUERIDO),
+    
+    fecha_registro: isEditing
+      ? yup.string() // En edición no validar cambios de fecha
+      : yup
+          .string()
+          .required(MENSAJES_ERROR.FECHA.REQUERIDA)
+          .test(
+            'fecha-no-futura',
+            MENSAJES_ERROR.FECHA.FUTURA,
+            function (value) {
+              if (!value) return true;
+              const fecha = new Date(value);
+              const hoy = new Date();
+              hoy.setHours(0, 0, 0, 0);
+              return fecha <= hoy;
+            }
+          )
+          .test(
+            'fecha-no-antigua',
+            MENSAJES_ERROR.FECHA.ANTIGUA(getFechaMinima()),
+            function (value) {
+              if (!value) return true;
+              const fecha = new Date(value);
+              const fechaMinima = new Date(getFechaMinima());
+              return fecha >= fechaMinima;
+            }
+          ),
+    
+    peso: yup
+      .number()
+      .typeError(MENSAJES_ERROR.PESO.REQUERIDO)
+      .transform(toDecimal)
+      .required(MENSAJES_ERROR.PESO.REQUERIDO)
+      .test('peso-positivo', MENSAJES_ERROR.PESO.POSITIVO, value => value > 0)
+      .test('peso-minimo', MENSAJES_ERROR.PESO.MINIMO, value => value >= PESO_MIN)
+      .test('peso-maximo', MENSAJES_ERROR.PESO.MAXIMO, value => value <= PESO_MAX),
+    
+    estatura: yup
+      .number()
+      .typeError(MENSAJES_ERROR.ESTATURA.REQUERIDO)
+      .transform(toDecimal)
+      .required(MENSAJES_ERROR.ESTATURA.REQUERIDO)
+      .test('estatura-positiva', MENSAJES_ERROR.ESTATURA.POSITIVA, value => value > 0)
+      .test('estatura-minima', MENSAJES_ERROR.ESTATURA.MINIMA, value => value >= ESTATURA_MIN)
+      .test('estatura-maxima', MENSAJES_ERROR.ESTATURA.MAXIMA, value => value <= ESTATURA_MAX),
+    
+    altura_sentado: yup
+      .number()
+      .typeError(MENSAJES_ERROR.ALTURA_SENTADO.REQUERIDO)
+      .transform(toDecimal)
+      .required(MENSAJES_ERROR.ALTURA_SENTADO.REQUERIDO)
+      .test('altura-sentado-positiva', MENSAJES_ERROR.ALTURA_SENTADO.POSITIVA, value => value > 0)
+      .test('altura-sentado-minima', MENSAJES_ERROR.ALTURA_SENTADO.MINIMA, value => value >= ALTURA_SENTADO_MIN)
+      .test('altura-sentado-maxima', MENSAJES_ERROR.ALTURA_SENTADO.MAXIMA, value => value <= ALTURA_SENTADO_MAX)
+      .test(
+        'altura-sentado-menor-estatura',
+        MENSAJES_ERROR.ALTURA_SENTADO.MAYOR_ESTATURA,
+        function (value) {
+          const estatura = this.parent.estatura;
+          if (typeof value !== 'number' || typeof estatura !== 'number') return true;
+          return value <= estatura;
         }
-        return true;
-      }
-    ),
-  
-  observaciones: yup.string().optional().nullable(),
-});
+      )
+      .test(
+        'altura-sentado-proporcion',
+        MENSAJES_ERROR.ALTURA_SENTADO.PROPORCION,
+        function (value) {
+          const estatura = this.parent.estatura;
+          if (typeof value !== 'number' || typeof estatura !== 'number') return true;
+          return value >= estatura * ALTURA_SENTADO_RATIO_MIN;
+        }
+      ),
+    
+    envergadura: yup
+      .number()
+      .typeError(MENSAJES_ERROR.ENVERGADURA.REQUERIDO)
+      .transform(toDecimal)
+      .required(MENSAJES_ERROR.ENVERGADURA.REQUERIDO)
+      .test('envergadura-positiva', MENSAJES_ERROR.ENVERGADURA.POSITIVA, value => value > 0)
+      .test('envergadura-minima', MENSAJES_ERROR.ENVERGADURA.MINIMA, value => value >= ENVERGADURA_MIN)
+      .test('envergadura-maxima', MENSAJES_ERROR.ENVERGADURA.MAXIMA, value => value <= ENVERGADURA_MAX)
+      .test(
+        'envergadura-ratio',
+        function (value) {
+          const estatura = this.parent.estatura;
+          if (typeof value !== 'number' || typeof estatura !== 'number') return true;
+          const ratio = value / estatura;
+          if (ratio < ENVERGADURA_RATIO_MIN || ratio > ENVERGADURA_RATIO_MAX) {
+            return this.createError({
+              message: MENSAJES_ERROR.ENVERGADURA.RATIO(ratio)
+            });
+          }
+          return true;
+        }
+      ),
+    
+    observaciones: yup.string().optional().nullable(),
+  });
+};
 
 const PruebaAntropometricaForm = ({
   initialData,
@@ -140,6 +147,12 @@ const PruebaAntropometricaForm = ({
 }) => {
   const [atletas, setAtletas] = useState([]);
   const [loadingAtletas, setLoadingAtletas] = useState(true);
+  
+  // Determinar si es edición
+  const isEditing = !!initialData?.id;
+  
+  // Obtener el schema apropiado según si es creación o edición
+  const schema = createSchema(isEditing);
 
   const {
     register,
@@ -316,42 +329,71 @@ const PruebaAntropometricaForm = ({
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Atleta <span className="text-red-500">*</span>
+            {isEditing && <span className="text-gray-500 text-xs ml-1">(No editable)</span>}
           </label>
-          <select
-            {...register('atleta', { 
-              setValueAs: (v) => v === '' ? '' : Number(v) 
-            })}
-            disabled={loadingAtletas}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-              errors.atleta ? 'border-red-500' : 'border-gray-300'
-            } ${loadingAtletas ? 'bg-gray-100' : ''}`}
-          >
-            <option value="">{loadingAtletas ? 'Cargando atletas...' : 'Seleccione un atleta'}</option>
-            {atletas.map((atleta) => (
-              <option key={atleta.value} value={atleta.value}>
-                {atleta.label}
-              </option>
-            ))}
-          </select>
+          {isEditing && initialData?.atleta ? (
+            <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+              <p className="font-medium">
+                {initialData.atleta.nombres || initialData.atleta.persona?.first_name || ''} {initialData.atleta.apellidos || initialData.atleta.persona?.last_name || ''}
+              </p>
+              <input type="hidden" {...register('atleta')} />
+            </div>
+          ) : (
+            <select
+              {...register('atleta', { 
+                setValueAs: (v) => v === '' ? '' : Number(v) 
+              })}
+              disabled={loadingAtletas}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                errors.atleta ? 'border-red-500' : 'border-gray-300'
+              } ${loadingAtletas ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+            >
+              <option value="">{loadingAtletas ? 'Cargando atletas...' : 'Seleccione un atleta'}</option>
+              {atletas.map((atleta) => (
+                <option key={atleta.value} value={atleta.value}>
+                  {atleta.label}
+                </option>
+              ))}
+            </select>
+          )}
           {errors.atleta && (
             <p className="mt-1 text-sm text-red-500">{errors.atleta.message}</p>
           )}
         </div>
 
         <div>
-          <Input
-            label="Fecha de Registro"
-            type="date"
-            min={getFechaMinima()}
-            max={getFechaMaxima()}
-            {...register('fecha_registro')}
-            error={errors.fecha_registro?.message}
-            touched={touchedFields.fecha_registro}
-            required
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            No puede ser futura ni anterior a {FECHA_MAX_ANTIGUEDAD_ANOS} años
-          </p>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Fecha de Registro <span className="text-red-500">*</span>
+            {isEditing && <span className="text-gray-500 text-xs ml-1">(No editable)</span>}
+          </label>
+          {isEditing ? (
+            <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 font-medium">
+              {new Date(initialData?.fecha_registro).toLocaleDateString('es-ES', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+              <input type="hidden" {...register('fecha_registro')} />
+            </div>
+          ) : (
+            <input
+              type="date"
+              min={getFechaMinima()}
+              max={getFechaMaxima()}
+              {...register('fecha_registro')}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                errors.fecha_registro ? 'border-red-500' : 'border-gray-300'
+              }`}
+            />
+          )}
+          {errors.fecha_registro && (
+            <p className="mt-1 text-sm text-red-500">{errors.fecha_registro.message}</p>
+          )}
+          {!isEditing && (
+            <p className="text-xs text-gray-500 mt-1">
+              No puede ser futura ni anterior a {FECHA_MAX_ANTIGUEDAD_ANOS} años
+            </p>
+          )}
         </div>
       </div>
 

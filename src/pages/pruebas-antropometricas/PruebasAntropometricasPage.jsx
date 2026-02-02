@@ -16,6 +16,9 @@ const PruebasAntropometricasPage = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showToggleModal, setShowToggleModal] = useState(false);
   const [toggleTarget, setToggleTarget] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareTarget, setShareTarget] = useState(null);
+  const [shareEmail, setShareEmail] = useState('');
 
   const {
     pruebas,
@@ -119,27 +122,16 @@ const PruebasAntropometricasPage = () => {
     }
   };
 
-  const handleShareReport = async (prueba) => {
-    const email = window.prompt('Correo electrónico de destino');
-    if (!email) return;
-    
-    // Validación básica de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast.error('Por favor ingrese un correo electrónico válido');
-      return;
-    }
-    
-    try {
-      setActionLoadingId(prueba.id);
-      await shareReport(prueba.id, { email });
-      toast.success('Reporte enviado correctamente');
-    } catch (error) {
-      const message = error?.response?.data?.error || error?.response?.data?.detail || 'Error al enviar el reporte';
-      toast.error(message);
-    } finally {
-      setActionLoadingId(null);
-    }
+  const handleShareReport = (prueba) => {
+    setShareTarget(prueba);
+    setShareEmail('');
+    setShowShareModal(true);
+  };
+
+  const confirmShareReport = () => {
+    toast.info('Esta funcionalidad de compartir por correo electrónico será implementada en futuras versiones');
+    setShowShareModal(false);
+    setShareEmail('');
   };
 
   const handlePrintReport = (prueba) => {
@@ -467,7 +459,7 @@ const PruebasAntropometricasPage = () => {
             <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center space-x-4">
                 <div className="text-sm text-gray-700">
-                  Mostrando {pruebas.length > 0 ? ((filtros.page - 1) * filtros.pageSize) + 1 : 0} - {Math.min(filtros.page * filtros.pageSize, totalItems)} de {totalItems} resultados
+                  Mostrando {pruebas.length > 0 ? ((filtros.page - 1) * (filtros.pageSize || 10)) + 1 : 0} - {Math.min((filtros.page || 1) * (filtros.pageSize || 10), totalItems || 0)} de {totalItems || 0} resultados
                 </div>
                 <div className="flex items-center space-x-2">
                   <label className="text-sm font-medium text-gray-700">
@@ -622,6 +614,52 @@ const PruebasAntropometricasPage = () => {
               isLoading={actionLoadingId === toggleTarget?.id}
             >
               {toggleTarget?.estado ? 'Desactivar' : 'Activar'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de Compartir por Correo */}
+      <Modal
+        isOpen={showShareModal}
+        onClose={() => {
+          setShowShareModal(false);
+          setShareTarget(null);
+          setShareEmail('');
+        }}
+        title="Compartir Reporte"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800 font-medium">
+              Esta funcionalidad de compartir por correo electrónico será implementada en futuras versiones
+            </p>
+          </div>
+
+          {shareTarget && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+              <p className="font-medium text-gray-900">{getAtletaNombre(shareTarget)}</p>
+              <p>Fecha: {new Date(shareTarget.fecha_registro).toLocaleDateString('es-ES')}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-2 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowShareModal(false);
+                setShareTarget(null);
+                setShareEmail('');
+              }}
+            >
+              Cerrar
+            </Button>
+            <Button
+              onClick={confirmShareReport}
+              disabled
+            >
+              Compartir por Correo (Próximamente)
             </Button>
           </div>
         </div>

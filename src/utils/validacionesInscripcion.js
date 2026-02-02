@@ -33,6 +33,7 @@ export const LIMITES_EDAD = {
 
 /**
  * Límites de caracteres para campos de texto
+ * SINCRONIZADO CON BACKEND (models.py y serializers)
  * @constant
  */
 export const LIMITES_TEXTO = {
@@ -42,8 +43,14 @@ export const LIMITES_TEXTO = {
   TELEFONO_EXACTA: 10,
   PARENTESCO_MIN: 3,
   PARENTESCO_MAX: 50,
-  DIRECCION_MAX: 255,
-  ALERGIAS_MAX: 500,
+  // Direcciones - Máximo 75 caracteres (sincronizado con backend)
+  DIRECCION_MAX: 75,
+  // Campos médicos - Máximo 100 caracteres (sincronizado con backend)
+  CAMPOS_MEDICOS_MAX: 100,
+  ALERGIAS_MAX: 100,
+  ENFERMEDADES_MAX: 100,
+  MEDICAMENTOS_MAX: 100,
+  LESIONES_MAX: 100,
   OBSERVACIONES_MAX: 1000,
 }
 
@@ -65,6 +72,7 @@ export const SEXOS_VALIDOS = ['M', 'F', 'O']
 
 /**
  * Mensajes de error amigables para mostrar al usuario
+ * SINCRONIZADOS CON BACKEND - Los mensajes deben ser idénticos
  * @constant
  */
 export const MENSAJES_ERROR = {
@@ -73,13 +81,26 @@ export const MENSAJES_ERROR = {
   NOMBRE_MUY_CORTO: 'El nombre debe tener al menos 2 caracteres',
   APELLIDO_REQUERIDO: 'Por favor, ingresa los apellidos del atleta',
   APELLIDO_MUY_CORTO: 'Los apellidos deben tener al menos 2 caracteres',
-  CEDULA_REQUERIDA: 'La cédula es obligatoria para el registro',
-  CEDULA_INVALIDA: 'La cédula ingresada no es válida. Debe ser una cédula ecuatoriana de 10 dígitos',
-  CEDULA_FORMATO: 'La cédula solo puede contener números',
+  CEDULA_REQUERIDA: 'La cédula es requerida.',
+  CEDULA_INVALIDA: 'La cédula ingresada no es válida.',
+  CEDULA_FORMATO: 'La cédula debe contener solo dígitos numéricos.',
+  CEDULA_LONGITUD: 'La cédula debe tener exactamente 10 dígitos.',
+  CEDULA_PROVINCIA_INVALIDA: 'Código de provincia inválido en la cédula.',
+  CEDULA_DIGITO_VERIFICADOR: 'El dígito verificador de la cédula es incorrecto.',
   CEDULA_DUPLICADA: 'Este atleta ya tiene una inscripción activa. Verifica el número de cédula',
   TELEFONO_INVALIDO: 'El teléfono debe tener 10 dígitos',
   TELEFONO_FORMATO: 'El teléfono solo puede contener números',
   EMAIL_INVALIDO: 'Por favor, ingresa un correo electrónico válido',
+
+  // Errores de dirección (sincronizado con backend)
+  DIRECCION_MAX_LENGTH: `El campo dirección no puede exceder ${LIMITES_TEXTO.DIRECCION_MAX} caracteres.`,
+  DIRECCION_REPRESENTANTE_MAX_LENGTH: `La dirección del representante no puede exceder ${LIMITES_TEXTO.DIRECCION_MAX} caracteres.`,
+
+  // Errores de campos médicos (sincronizado con backend)
+  ALERGIAS_MAX_LENGTH: `El campo alergias no puede exceder ${LIMITES_TEXTO.CAMPOS_MEDICOS_MAX} caracteres.`,
+  ENFERMEDADES_MAX_LENGTH: `El campo enfermedades no puede exceder ${LIMITES_TEXTO.CAMPOS_MEDICOS_MAX} caracteres.`,
+  MEDICAMENTOS_MAX_LENGTH: `El campo medicamentos no puede exceder ${LIMITES_TEXTO.CAMPOS_MEDICOS_MAX} caracteres.`,
+  LESIONES_MAX_LENGTH: `El campo lesiones no puede exceder ${LIMITES_TEXTO.CAMPOS_MEDICOS_MAX} caracteres.`,
 
   // Errores de atleta
   FECHA_NACIMIENTO_REQUERIDA: 'La fecha de nacimiento es obligatoria',
@@ -230,6 +251,63 @@ export const validarCedula = (cedula) => {
   const digitoVerificadorReal = parseInt(cedulaLimpia[9], 10)
   
   return digitoVerificadorCalculado === digitoVerificadorReal
+}
+
+/**
+ * Valida una cédula ecuatoriana y retorna el error específico si hay alguno.
+ * Sincronizado con los mensajes del backend.
+ * 
+ * @param {string} cedula - Número de cédula
+ * @returns {{ valido: boolean, error: string|null }} Resultado de validación con mensaje de error
+ */
+export const validarCedulaDetallado = (cedula) => {
+  if (!cedula) {
+    return { valido: false, error: MENSAJES_ERROR.CEDULA_REQUERIDA }
+  }
+  
+  // Limpiar caracteres no numéricos
+  const cedulaLimpia = cedula.replace(/\D/g, '')
+  
+  // Validar que solo contenga números
+  if (!validarSoloNumeros(cedulaLimpia)) {
+    return { valido: false, error: MENSAJES_ERROR.CEDULA_FORMATO }
+  }
+  
+  // Debe tener exactamente 10 dígitos
+  if (cedulaLimpia.length !== LIMITES_TEXTO.CEDULA_EXACTA) {
+    return { valido: false, error: MENSAJES_ERROR.CEDULA_LONGITUD }
+  }
+  
+  // Validar código de provincia (01-24)
+  const provincia = parseInt(cedulaLimpia.substring(0, 2), 10)
+  if (provincia < 1 || provincia > 24) {
+    return { valido: false, error: MENSAJES_ERROR.CEDULA_PROVINCIA_INVALIDA }
+  }
+  
+  // El tercer dígito debe ser menor a 6
+  const tercerDigito = parseInt(cedulaLimpia[2], 10)
+  if (tercerDigito >= 6) {
+    return { valido: false, error: MENSAJES_ERROR.CEDULA_INVALIDA }
+  }
+  
+  // Algoritmo de validación módulo 10
+  const coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2]
+  let suma = 0
+  
+  for (let i = 0; i < 9; i++) {
+    let valor = parseInt(cedulaLimpia[i], 10) * coeficientes[i]
+    if (valor >= 10) valor -= 9
+    suma += valor
+  }
+  
+  const digitoVerificadorCalculado = suma % 10 === 0 ? 0 : 10 - (suma % 10)
+  const digitoVerificadorReal = parseInt(cedulaLimpia[9], 10)
+  
+  if (digitoVerificadorCalculado !== digitoVerificadorReal) {
+    return { valido: false, error: MENSAJES_ERROR.CEDULA_DIGITO_VERIFICADOR }
+  }
+  
+  return { valido: true, error: null }
 }
 
 /**
@@ -584,6 +662,7 @@ export default {
   validarSoloLetras,
   validarSoloNumeros,
   validarCedula,
+  validarCedulaDetallado,
   validarTelefono,
   validarEmail,
   calcularEdad,

@@ -11,10 +11,12 @@ import { isValidEmail, isValidPhone } from '../../utils/validators'
 import { InscripcionService } from '../../api'
 import { 
   MENSAJES_ERROR as INSCRIPCION_ERRORS,
+  LIMITES_TEXTO,
   esMenorDeEdad as utilEsMenorDeEdad,
   calcularEdad as utilCalcularEdad,
   determinarTipoInscripcion as utilDeterminarTipoInscripcion,
   validarCedula,
+  validarCedulaDetallado,
   LIMITES_EDAD,
 } from '../../utils/validacionesInscripcion'
 
@@ -85,6 +87,9 @@ const InscripcionForm = ({
   const [formatWarning, setFormatWarning] = useState({})
 
   const [cedulaRepInfo, setCedulaRepInfo] = useState(null)
+
+  // Estado para mostrar alertas de límite alcanzado
+  const [limitReached, setLimitReached] = useState({})
 
   // Estado del formulario
   const [formData, setFormData] = useState({
@@ -292,6 +297,37 @@ const InscripcionForm = ({
       updates[name] = value.slice(0, 10)
     }
 
+    // ========== VALIDACIÓN: CAMPOS MÉDICOS - Máximo 100 caracteres ==========
+    const camposMedicos = ['alergias', 'enfermedades', 'medicamentos', 'lesiones']
+    if (camposMedicos.includes(name)) {
+      if (value.length >= LIMITES_TEXTO.CAMPOS_MEDICOS_MAX) {
+        updates[name] = value.slice(0, LIMITES_TEXTO.CAMPOS_MEDICOS_MAX)
+        setLimitReached(prev => ({ ...prev, [name]: INSCRIPCION_ERRORS[`${name.toUpperCase()}_MAX_LENGTH`] }))
+        // Limpiar alerta después de 3 segundos
+        setTimeout(() => {
+          setLimitReached(prev => ({ ...prev, [name]: null }))
+        }, 3000)
+      } else {
+        setLimitReached(prev => ({ ...prev, [name]: null }))
+      }
+    }
+
+    // ========== VALIDACIÓN: CAMPOS DIRECCIÓN - Máximo 75 caracteres ==========
+    const camposDireccion = ['direction', 'direccion_representante']
+    if (camposDireccion.includes(name)) {
+      if (value.length >= LIMITES_TEXTO.DIRECCION_MAX) {
+        updates[name] = value.slice(0, LIMITES_TEXTO.DIRECCION_MAX)
+        const errorKey = name === 'direction' ? 'DIRECCION_MAX_LENGTH' : 'DIRECCION_REPRESENTANTE_MAX_LENGTH'
+        setLimitReached(prev => ({ ...prev, [name]: INSCRIPCION_ERRORS[errorKey] }))
+        // Limpiar alerta después de 3 segundos
+        setTimeout(() => {
+          setLimitReached(prev => ({ ...prev, [name]: null }))
+        }, 3000)
+      } else {
+        setLimitReached(prev => ({ ...prev, [name]: null }))
+      }
+    }
+
     // REGLA: Limpiar sexo_otro si cambia de "Otro" a otra opción
     if (name === 'sexo' && value !== 'O') {
       updates.sexo_otro = ''
@@ -358,8 +394,11 @@ const InscripcionForm = ({
     // Validación de cédula: requerida y algoritmo módulo 10 (sincronizado con backend)
     if (!formData.identification.trim()) {
       newErrors.identification = INSCRIPCION_ERRORS.CEDULA_REQUERIDA
-    } else if (!validarCedula(formData.identification.trim())) {
-      newErrors.identification = INSCRIPCION_ERRORS.CEDULA_INVALIDA
+    } else {
+      const resultadoValidacion = validarCedulaDetallado(formData.identification.trim())
+      if (!resultadoValidacion.valido) {
+        newErrors.identification = resultadoValidacion.error
+      }
     }
     
     // Teléfono: opcional, pero si se proporciona debe tener 10 dígitos
@@ -407,8 +446,12 @@ const InscripcionForm = ({
       // Cédula representante: validación completa con algoritmo módulo 10
       if (!formData.cedula_representante?.trim()) {
         newErrors.cedula_representante = INSCRIPCION_ERRORS.CEDULA_REPRESENTANTE_REQUERIDA
-      } else if (!validarCedula(formData.cedula_representante.trim())) {
-        newErrors.cedula_representante = INSCRIPCION_ERRORS.CEDULA_REPRESENTANTE_INVALIDA
+      } else {
+        const resultadoValidacionRep = validarCedulaDetallado(formData.cedula_representante.trim())
+        if (!resultadoValidacionRep.valido) {
+          // Usar mensaje genérico para representante si falla
+          newErrors.cedula_representante = INSCRIPCION_ERRORS.CEDULA_REPRESENTANTE_INVALIDA
+        }
       }
       
       if (!formData.parentesco_representante?.trim()) {
@@ -515,28 +558,56 @@ const InscripcionForm = ({
   }
 
   // Renderizar inputs - COMPACTO
-  const renderInput = (name, label, type = 'text', required = false, props = {}) => (
-    <div>
-      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
-        {label} {required && !readOnly && <span className="text-red-500">*</span>}
-      </label>
-      <input
-        type={type}
-        id={name}
-        name={name}
-        value={formData[name] || ''}
-        onChange={handleChange}
-        disabled={loading || readOnly}
-        readOnly={readOnly}
-        className={`block w-full px-2 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-          errors[name] ? 'border-red-300' : 'border-gray-300'
-        } ${readOnly ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
-        {...props}
-      />
-      {!readOnly && formatWarning[name] && <p className="mt-0.5 text-xs text-amber-600 font-medium flex items-center"><FiAlertTriangle className="w-3 h-3 mr-1" />{formatWarning[name]}</p>}
-      {!readOnly && errors[name] && !formatWarning[name] && <p className="mt-0.5 text-xs text-red-600">{errors[name]}</p>}
-    </div>
-  )
+  const renderInput = (name, label, type = 'text', required = false, props = {}) => {
+    // Determinar el límite de caracteres según el campo
+    let maxLength = props.maxLength
+    if (['direction', 'direccion_representante'].includes(name)) {
+      maxLength = LIMITES_TEXTO.DIRECCION_MAX
+    }
+    
+    const currentLength = formData[name]?.length || 0
+    const showCounter = maxLength && ['direction', 'direccion_representante'].includes(name)
+    const isNearLimit = showCounter && currentLength >= maxLength - 10
+    const isAtLimit = showCounter && currentLength >= maxLength
+
+    // Extraer maxLength de props para evitar duplicados
+    const { maxLength: propsMaxLength, ...restProps } = props
+    const finalMaxLength = maxLength || propsMaxLength
+
+    return (
+      <div>
+        <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+          {label} {required && !readOnly && <span className="text-red-500">*</span>}
+          {showCounter && (
+            <span className={`ml-2 text-xs ${isAtLimit ? 'text-red-600 font-bold' : isNearLimit ? 'text-amber-600' : 'text-gray-400'}`}>
+              ({currentLength}/{maxLength})
+            </span>
+          )}
+        </label>
+        <input
+          type={type}
+          id={name}
+          name={name}
+          value={formData[name] || ''}
+          onChange={handleChange}
+          disabled={loading || readOnly}
+          readOnly={readOnly}
+          maxLength={finalMaxLength}
+          className={`block w-full px-2 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            errors[name] || limitReached[name] ? 'border-red-300' : 'border-gray-300'
+          } ${readOnly ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
+          {...restProps}
+        />
+        {!readOnly && limitReached[name] && (
+          <p className="mt-0.5 text-xs text-red-600 font-medium flex items-center animate-pulse">
+            <FiAlertTriangle className="w-3 h-3 mr-1" />{limitReached[name]}
+          </p>
+        )}
+        {!readOnly && formatWarning[name] && !limitReached[name] && <p className="mt-0.5 text-xs text-amber-600 font-medium flex items-center"><FiAlertTriangle className="w-3 h-3 mr-1" />{formatWarning[name]}</p>}
+        {!readOnly && errors[name] && !formatWarning[name] && !limitReached[name] && <p className="mt-0.5 text-xs text-red-600">{errors[name]}</p>}
+      </div>
+    )
+  }
 
   const renderSelect = (name, label, options, required = false) => (
     <div>
@@ -562,21 +633,45 @@ const InscripcionForm = ({
     </div>
   )
 
-  const renderTextarea = (name, label, rows = 2) => (
-    <div>
-      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <textarea
-        id={name}
-        name={name}
-        value={formData[name] || ''}
-        onChange={handleChange}
-        disabled={loading || readOnly}
-        readOnly={readOnly}
-        rows={rows}
-        className={`block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${readOnly ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
-      />
-    </div>
-  )
+  const renderTextarea = (name, label, rows = 2) => {
+    // Campos médicos tienen límite de 100 caracteres
+    const isMedicalField = ['alergias', 'enfermedades', 'medicamentos', 'lesiones'].includes(name)
+    const maxLength = isMedicalField ? LIMITES_TEXTO.CAMPOS_MEDICOS_MAX : null
+    const currentLength = formData[name]?.length || 0
+    const isNearLimit = maxLength && currentLength >= maxLength - 15
+    const isAtLimit = maxLength && currentLength >= maxLength
+
+    return (
+      <div>
+        <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+          {label}
+          {maxLength && (
+            <span className={`ml-2 text-xs ${isAtLimit ? 'text-red-600 font-bold' : isNearLimit ? 'text-amber-600' : 'text-gray-400'}`}>
+              ({currentLength}/{maxLength})
+            </span>
+          )}
+        </label>
+        <textarea
+          id={name}
+          name={name}
+          value={formData[name] || ''}
+          onChange={handleChange}
+          disabled={loading || readOnly}
+          readOnly={readOnly}
+          rows={rows}
+          maxLength={maxLength}
+          className={`block w-full px-2 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            limitReached[name] ? 'border-red-300 bg-red-50' : 'border-gray-300'
+          } ${readOnly ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
+        />
+        {!readOnly && limitReached[name] && (
+          <p className="mt-0.5 text-xs text-red-600 font-medium flex items-center animate-pulse">
+            <FiAlertTriangle className="w-3 h-3 mr-1" />{limitReached[name]}
+          </p>
+        )}
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit} className="max-h-[75vh] overflow-y-auto px-1">
@@ -655,7 +750,11 @@ const InscripcionForm = ({
                     </div>
                   )}
                 </div>
-                {!readOnly && (cedulaError ? (
+                {!readOnly && (formatWarning.identification ? (
+                  <p className="mt-0.5 text-xs text-amber-600 font-medium flex items-center">
+                    <FiAlertTriangle className="w-3 h-3 mr-1" />{formatWarning.identification}
+                  </p>
+                ) : cedulaError ? (
                   <p className="mt-0.5 text-xs text-red-600 font-medium">{cedulaError}</p>
                 ) : errors.identification ? (
                   <p className="mt-0.5 text-xs text-red-600">{errors.identification}</p>

@@ -7,6 +7,22 @@ import { useForm } from '../../hooks'
 import { validarEspecialidad, validarClubAsignado, VALIDACIONES_ENTRENADOR, TOOLTIPS_ENTRENADOR } from '../../utils/validacionesEntrenador'
 import { isValidCedula, isValidEmail, isValidPhone } from '../../utils/validators'
 
+// Función inteligente para capitalizar nombres (solo primeras letras)
+const capitalizeWords = (str) => {
+  if (!str) return ''
+  return str
+    .trim()
+    .split(/\s+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
+// Función para convertir texto general a mayúsculas (nombres de especialidad, etc)
+const toUpperCase = (str) => {
+  if (!str) return ''
+  return str.trim().toUpperCase()
+}
+
 const initialValues = {
   identification: '',
   first_name: '',
@@ -71,8 +87,10 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
         errors.password = 'La contraseña es obligatoria'
       } else if (values.password.length < 8) {
         errors.password = 'La contraseña debe tener al menos 8 caracteres'
-      } else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(values.password)) {
-        errors.password = 'La contraseña debe contener letras y números'
+      } else if (!/(?=.*[A-Z])/.test(values.password)) {
+        errors.password = 'La contraseña debe contener al menos una mayúscula'
+      } else if (!/(?=.*[0-9])/.test(values.password)) {
+        errors.password = 'La contraseña debe contener al menos un número'
       } else if (values.password.length > 30) {
         errors.password = 'La contraseña no puede exceder los 30 caracteres'
       }
@@ -128,6 +146,11 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
       setSubmitError(null)
       
       if (entrenadorSeleccionado) {
+        console.log('=== CARGANDO DATOS PARA EDICIÓN ===')
+        console.log('entrenadorSeleccionado completo:', entrenadorSeleccionado)
+        console.log('persona:', entrenadorSeleccionado.persona)
+        console.log('entrenador:', entrenadorSeleccionado.entrenador)
+        
         const { persona, entrenador } = entrenadorSeleccionado
         setMultipleValues({
           id: entrenador.id,
@@ -141,6 +164,14 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
           especialidad: entrenador.especialidad || '',
           club_asignado: entrenador.club_asignado || ''
         })
+        
+        console.log('Valores cargados:', {
+          identification: persona?.identification,
+          first_name: persona?.first_name,
+          last_name: persona?.last_name,
+          especialidad: entrenador.especialidad,
+          club_asignado: entrenador.club_asignado
+        })
       } else {
         setMultipleValues(initialValues)
       }
@@ -152,29 +183,39 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
     setDuplicateCedulaError(null)
     setSubmitError(null)
     
+    // Debug: mostrar valores antes de enviar
+    console.log('Valores antes de procesar:', formValues)
+    
     const personaData = {
-      first_name: formValues.first_name,
-      last_name: formValues.last_name,
-      phono: formValues.phono,
-      direction: formValues.direction,
+      first_name: capitalizeWords(formValues.first_name),
+      last_name: capitalizeWords(formValues.last_name),
+      phono: formValues.phono ? formValues.phono.trim() : null, // null si está vacío, no string vacío
+      direction: capitalizeWords(formValues.direction),
       type_identification: 'CEDULA',
       type_stament: 'ESTUDIANTES'
     }
 
     // Solo incluir identification, email y password en modo creación
     if (!isEdit) {
-      personaData.identification = formValues.identification
-      personaData.email = formValues.email
-      personaData.password = formValues.password
+      personaData.identification = formValues.identification.trim()
+      personaData.email = formValues.email.trim() // NO cambiar a minúsculas
+      personaData.password = formValues.password // NO cambiar contraseña
     }
 
     const payload = {
       persona: personaData,
       entrenador: {
-        especialidad: formValues.especialidad,
-        club_asignado: formValues.club_asignado
+        especialidad: toUpperCase(formValues.especialidad),
+        club_asignado: toUpperCase(formValues.club_asignado)
       }
     }
+    
+    // Debug: mostrar payload completo
+    console.log('Payload a enviar:', JSON.stringify(payload, null, 2))
+    console.log('Identificación:', personaData.identification)
+    console.log('Email:', personaData.email)
+    console.log('Nombre:', personaData.first_name)
+    console.log('Apellido:', personaData.last_name)
 
     try {
       const result = isEdit 
@@ -186,24 +227,64 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
         onClose()
         if (isEdit) clearEntrenadorSeleccionado()
       } else {
-        // Detectar error de cédula duplicada y personalizar mensaje
+        // Procesar errores del backend
         const errorMsg = result.error || 'Ocurrió un error inesperado'
+        
+        // Debug: mostrar error completo en consola
+        console.error('Error completo del backend:', errorMsg)
+        console.error('Tipo de error:', typeof errorMsg)
+        console.error('Es array:', Array.isArray(errorMsg))
+        
+        // Si es array de errores, tomar el primero
+        let displayError = Array.isArray(errorMsg) ? errorMsg[0] : errorMsg
+        
+        // Debug: mostrar el error procesado
+        console.error('Error procesado:', displayError)
+        
+        // Buscar errores específicos de validación
+        if (typeof displayError === 'string') {
+          if (displayError.includes('Error en módulo de usuarios')) {
+            // Intentar extraer mensaje más específico
+            const match = displayError.match(/Error en módulo de usuarios:\s*(.+?)$/i)
+            if (match && match[1]) {
+              displayError = match[1]
+            } else {
+              displayError = 'Error de validación en el módulo de usuarios. Verifica que los datos sean correctos.'
+            }
+          }
+        }
+        
+        // Detectar error de cédula duplicada y personalizar mensaje
         const isDuplicateError = 
-          errorMsg.toLowerCase().includes('ya existe') ||
-          errorMsg.toLowerCase().includes('ya se encuentra registrado') ||
-          errorMsg.toLowerCase().includes('identification') ||
-          errorMsg.toLowerCase().includes('duplicado')
+          displayError.toLowerCase().includes('ya existe') ||
+          displayError.toLowerCase().includes('ya se encuentra registrado') ||
+          displayError.toLowerCase().includes('identification') ||
+          displayError.toLowerCase().includes('duplicado')
         
         if (isDuplicateError) {
           setDuplicateCedulaError('La cedula actual ya se encuentra registrada')
           toast.error('La cedula actual ya se encuentra registrada')
         } else {
-          setSubmitError(errorMsg)
-          toast.error(errorMsg)
+          setSubmitError(displayError)
+          toast.error(displayError)
+          // Instrucción en consola detallada
+          console.log('='.repeat(80))
+          console.log('❌ ERROR AL CREAR ENTRENADOR')
+          console.log('='.repeat(80))
+          console.log('INFORMACIÓN DE DEPURACIÓN:')
+          console.log('Cédula:', payload.persona.identification)
+          console.log('Nombre:', payload.persona.first_name)
+          console.log('Apellido:', payload.persona.last_name)
+          console.log('Email:', payload.persona.email)
+          console.log('Teléfono:', payload.persona.phono)
+          console.log('Error del backend:', displayError)
+          console.log('Payload completo:', payload)
+          console.log('='.repeat(80))
         }
       }
     } catch (error) {
       const errorMsg = error?.message || 'Ocurrió un error inesperado'
+      console.error('Exception no controlada:', error)
       setSubmitError(errorMsg)
       toast.error(errorMsg)
     }

@@ -68,19 +68,21 @@ export const resolveBackendError = (error) => {
   if (data?.errors && typeof data.errors === 'object') {
     const errorMessages = Object.entries(data.errors)
       .map(([key, value]) => {
-        if (Array.isArray(value)) return value.join(', ')
-        return value
+        if (Array.isArray(value)) return `${key}: ${value.join(', ')}`
+        return `${key}: ${value}`
       })
       .filter(Boolean)
     if (errorMessages.length > 0) return errorMessages.join('; ')
   }
 
-  // Error de validación de Django
+  // Error de validación de Django en formato de lista
   if (Array.isArray(data)) {
-    return data.filter(e => typeof e === 'string').join('; ') || 'Error en validación'
+    const messages = data.filter(e => typeof e === 'string')
+    return messages.length > 0 ? messages.join('; ') : 'Error en validación'
   }
 
-  // Fallback
+  // Fallback con más detalles
+  console.error('Error no manejado:', error)
   return error?.message || 'Ocurrió un error inesperado'
 }
 

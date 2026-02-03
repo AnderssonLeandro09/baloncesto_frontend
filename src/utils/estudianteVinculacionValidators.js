@@ -401,7 +401,12 @@ export const ESTUDIANTE_FRIENDLY_MESSAGES = {
   'La contraseña es obligatoria': 'Por favor, ingresa una contraseña',
   'La carrera es obligatoria': 'Por favor, ingresa la carrera del estudiante',
   'El semestre es obligatorio': 'Por favor, selecciona el semestre',
+  'Ya existe un estudiante de vinculación registrado con esta cédula': 'Ya existe un estudiante registrado con esta cédula',
+  'ya existe un estudiante': 'Ya existe un estudiante registrado con esta cédula',
+  'registrado con esta cédula': 'Ya existe un estudiante registrado con esta cédula',
   'Ya existe': 'Ya existe un estudiante con esos datos',
+  'ya esta registrada': 'Esta cédula ya está registrada en el sistema',
+  'already registered': 'Esta cédula ya está registrada en el sistema',
   'no encontrado': 'No se encontró el estudiante',
 }
 

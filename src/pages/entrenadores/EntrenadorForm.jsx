@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { FiSave } from 'react-icons/fi'
+import { useEffect, useState } from 'react'
+import { FiSave, FiAlertTriangle, FiAlertCircle } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { Modal, Button, Input, Select } from '../../components/common'
 import { useEntrenadorStore } from '../../stores'
@@ -29,6 +29,10 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
   } = useEntrenadorStore()
 
   const isEdit = !!entrenadorSeleccionado
+  
+  // Estados para manejo de errores
+  const [duplicateCedulaError, setDuplicateCedulaError] = useState(null)
+  const [submitError, setSubmitError] = useState(null)
 
   // Validación dinámica según el modo (crear/editar)
   const validate = (values) => {
@@ -111,8 +115,18 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
     reset
   } = useForm(initialValues, validate)
 
+  // Manejador personalizado para limpiar error de cédula cuando se modifica
+  const handleIdentificationChange = (e) => {
+    handleChange(e)
+    setDuplicateCedulaError(null)
+  }
+
   useEffect(() => {
     if (isOpen) {
+      // Limpiar errores al abrir el modal
+      setDuplicateCedulaError(null)
+      setSubmitError(null)
+      
       if (entrenadorSeleccionado) {
         const { persona, entrenador } = entrenadorSeleccionado
         setMultipleValues({
@@ -134,6 +148,10 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
   }, [isOpen, entrenadorSeleccionado, setMultipleValues])
 
   const onSubmit = async (formValues) => {
+    // Limpiar errores previos
+    setDuplicateCedulaError(null)
+    setSubmitError(null)
+    
     const personaData = {
       identification: formValues.identification,
       first_name: formValues.first_name,
@@ -158,16 +176,36 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
       }
     }
 
-    const result = isEdit 
-      ? await updateEntrenador(entrenadorSeleccionado.entrenador.id, payload)
-      : await createEntrenador(payload)
+    try {
+      const result = isEdit 
+        ? await updateEntrenador(entrenadorSeleccionado.entrenador.id, payload)
+        : await createEntrenador(payload)
 
-    if (result.success) {
-      toast.success(isEdit ? 'Entrenador actualizado exitosamente' : 'Entrenador creado exitosamente')
-      onClose()
-      if (isEdit) clearEntrenadorSeleccionado()
-    } else {
-      toast.error(result.error || 'Ocurrió un error inesperado')
+      if (result.success) {
+        toast.success(isEdit ? 'Entrenador actualizado exitosamente' : 'Entrenador creado exitosamente')
+        onClose()
+        if (isEdit) clearEntrenadorSeleccionado()
+      } else {
+        // Detectar error de cédula duplicada y personalizar mensaje
+        const errorMsg = result.error || 'Ocurrió un error inesperado'
+        const isDuplicateError = 
+          errorMsg.toLowerCase().includes('ya existe') ||
+          errorMsg.toLowerCase().includes('ya se encuentra registrado') ||
+          errorMsg.toLowerCase().includes('identification') ||
+          errorMsg.toLowerCase().includes('duplicado')
+        
+        if (isDuplicateError) {
+          setDuplicateCedulaError('La cedula actual ya se encuentra registrada')
+          toast.error('La cedula actual ya se encuentra registrada')
+        } else {
+          setSubmitError(errorMsg)
+          toast.error(errorMsg)
+        }
+      }
+    } catch (error) {
+      const errorMsg = error?.message || 'Ocurrió un error inesperado'
+      setSubmitError(errorMsg)
+      toast.error(errorMsg)
     }
   }
 
@@ -178,6 +216,31 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
       title={isEdit ? 'Editar Entrenador' : 'Nuevo Entrenador'}
       size="lg"
     >
+      {/* Error de cédula duplicada */}
+      {duplicateCedulaError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-3 mb-4">
+          <div className="flex-shrink-0">
+            <FiAlertTriangle className="w-5 h-5 text-red-600" />
+          </div>
+          <div className="w-full">
+            <h4 className="text-sm font-bold text-red-800 mb-1">Cédula ya registrada</h4>
+            <p className="text-sm text-red-700">{duplicateCedulaError}</p>
+            <p className="text-xs text-red-500 mt-1">Corrija el número de cédula para continuar.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error general (otros errores) */}
+      {submitError && !duplicateCedulaError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-2 mb-4">
+          <FiAlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="overflow-hidden break-words w-full">
+            <h4 className="text-sm font-medium text-red-800">Error al guardar</h4>
+            <p className="text-sm text-red-700 break-words">{submitError}</p>
+          </div>
+        </div>
+      )}
+      
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Datos Personales */}
@@ -188,9 +251,9 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
               label="Identificación (Cédula)"
               name="identification"
               value={values.identification}
-              onChange={handleChange}
+              onChange={handleIdentificationChange}
               onBlur={handleBlur}
-              error={errors.identification}
+              error={errors.identification || duplicateCedulaError}
               touched={touched.identification}
               required
               inputMode="numeric"

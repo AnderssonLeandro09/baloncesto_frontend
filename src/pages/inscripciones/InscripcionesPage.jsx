@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react'
 import { FiPlus, FiSearch, FiRefreshCw } from 'react-icons/fi'
 import { toast } from 'react-hot-toast'
 import { Card, Button, Modal, ConfirmDialog } from '../../components/common'
-import { InscripcionList, InscripcionForm } from '../../components/inscripciones'
+import { InscripcionList, InscripcionForm, InscripcionDetail } from '../../components/inscripciones'
 import useInscripcionStore from '../../stores/inscripcionStore'
 import { MENSAJES_EXITO } from '../../utils/validacionesInscripcion'
 
@@ -225,11 +225,11 @@ const InscripcionesPage = () => {
         loading={loading}
       />
 
-      {/* Modal de creación/edición/visualización */}
+      {/* Modal de creación/edición */}
       <Modal
-        isOpen={showModal}
+        isOpen={showModal && !isViewMode}
         onClose={handleCloseModal}
-        title={isViewMode ? 'Detalles de Inscripción' : (inscripcionSeleccionada ? 'Editar Inscripción' : 'Nueva Inscripción')}
+        title={inscripcionSeleccionada ? 'Editar Inscripción' : 'Nueva Inscripción'}
         size="xl"
       >
         <InscripcionForm
@@ -238,7 +238,27 @@ const InscripcionesPage = () => {
           onCancel={handleCloseModal}
           loading={loading}
           serverErrors={formErrors}
-          readOnly={isViewMode}
+        />
+      </Modal>
+
+      {/* Modal de visualización de detalles (nuevo diseño) */}
+      <Modal
+        isOpen={showModal && isViewMode}
+        onClose={handleCloseModal}
+        title="Detalles de Inscripción"
+        size="xl"
+      >
+        <InscripcionDetail
+          inscripcion={inscripcionSeleccionada}
+          onClose={handleCloseModal}
+          onEdit={(inscripcion) => {
+            setIsViewMode(false)
+            // El modal se mantiene abierto pero cambia a modo edición
+          }}
+          onToggleStatus={(inscripcion) => {
+            handleCloseModal()
+            handleToggleStatus(inscripcion)
+          }}
         />
       </Modal>
 

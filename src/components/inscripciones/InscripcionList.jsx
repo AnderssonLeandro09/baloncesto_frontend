@@ -17,9 +17,9 @@ const InscripcionList = ({
   onToggleStatus, 
   loading = false 
 }) => {
-  // Estado de paginación local
+  // Estado de paginación local con valor por defecto de 10
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
+  const [pageSize, setPageSize] = useState(PAGINATION_CONFIG.defaultPageSize)
 
   // Paginar datos
   const { data: paginatedInscripciones, pagination } = useMemo(() => {

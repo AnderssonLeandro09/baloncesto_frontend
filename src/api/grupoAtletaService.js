@@ -124,6 +124,16 @@ const GrupoAtletaService = {
       return processError(error)
     }
   },
+
+  /**
+   * Toggle del estado de un grupo (habilitar/deshabilitar)
+   * @param {number} id - ID del grupo
+   * @returns {Promise<Object>} Grupo actualizado
+   */
+  toggleEstado: async (id) => {
+    const response = await apiClient.post(`${ENDPOINTS.GRUPOS_ATLETAS}${id}/toggle-estado/`, {})
+    return response.data
+  },
 }
 
 export default GrupoAtletaService

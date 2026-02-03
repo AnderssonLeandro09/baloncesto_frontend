@@ -153,6 +153,26 @@ const useGrupoStore = create((set, get) => ({
     }
   },
 
+  toggleEstado: async (id) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await GrupoAtletaService.toggleEstado(id)
+      const grupoActualizado = response?.data || response
+      set((state) => ({
+        grupos: state.grupos.map(g => g.id === id ? grupoActualizado : g),
+        loading: false
+      }))
+      return { 
+        success: true, 
+        data: grupoActualizado,
+        message: response?.msg || 'Estado actualizado exitosamente'
+      }
+    } catch (error) {
+      set({ error: error.message, loading: false })
+      return { success: false, error: error.message }
+    }
+  },
+
   reset: () => set({
     grupos: [],
     grupoSeleccionado: null,

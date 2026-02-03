@@ -1,14 +1,15 @@
-import { FiUsers, FiEdit2, FiTrash2, FiEye, FiCalendar, FiTrendingUp } from 'react-icons/fi'
+import { FiUsers, FiEdit2, FiEye, FiCalendar, FiTrendingUp } from 'react-icons/fi'
 
-const GrupoCard = ({ grupo, onEdit, onDelete, onView }) => {
+const GrupoCard = ({ grupo, onEdit, onView, onToggleStatus }) => {
   const atletasCount = grupo?.atletas?.length || 0
   const atletasHabilitados = grupo?.atletas?.filter(a => a?.inscripcion?.habilitada)?.length || 0
+  const habilitado = !grupo.eliminado
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
     >
       {/* Header con gradiente */}
-      <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-600" />
+      <div className={`h-2 bg-gradient-to-r ${habilitado ? 'from-blue-500 to-blue-600' : 'from-gray-400 to-gray-500'}`} />
 
       <div className="p-6">
         {/* Título y estado */}
@@ -20,11 +21,11 @@ const GrupoCard = ({ grupo, onEdit, onDelete, onView }) => {
             <p className="text-sm text-gray-500">{grupo.categoria?.substring(0, 50)}</p>
           </div>
           <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-            grupo.estado 
+            habilitado 
               ? 'bg-green-100 text-green-700' 
-              : 'bg-gray-100 text-gray-700'
+              : 'bg-red-100 text-red-700'
           }`}>
-            {grupo.estado ? 'Activo' : 'Inactivo'}
+            {habilitado ? 'Habilitado' : 'Deshabilitado'}
           </div>
         </div>
 
@@ -72,7 +73,7 @@ const GrupoCard = ({ grupo, onEdit, onDelete, onView }) => {
         </div>
 
         {/* Acciones */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <button
             onClick={() => onView(grupo)}
             className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
@@ -86,11 +87,21 @@ const GrupoCard = ({ grupo, onEdit, onDelete, onView }) => {
           >
             <FiEdit2 className="w-4 h-4" />
           </button>
+          {/* Toggle Estado */}
           <button
-            onClick={() => onDelete(grupo)}
-            className="flex items-center justify-center px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+            onClick={() => onToggleStatus?.(grupo)}
+            title={habilitado ? 'Deshabilitar grupo' : 'Habilitar grupo'}
+            className={`relative inline-flex items-center h-7 rounded-full w-12 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+              habilitado 
+                ? 'bg-green-500 focus:ring-green-500' 
+                : 'bg-gray-300 focus:ring-gray-400'
+            }`}
           >
-            <FiTrash2 className="w-4 h-4" />
+            <span
+              className={`inline-block w-5 h-5 transform transition-transform bg-white rounded-full shadow-md ${
+                habilitado ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
           </button>
         </div>
       </div>

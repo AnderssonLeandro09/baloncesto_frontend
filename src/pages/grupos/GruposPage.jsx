@@ -3,7 +3,7 @@ import {
   FiPlus, FiSearch, FiRefreshCw, FiAlertCircle,
   FiUsers, FiTrendingUp, FiActivity
 } from 'react-icons/fi'
-import { Card, Button, Modal, Loading, ConfirmDialog } from '../../components/common'
+import { Card, Button, Modal, Loading } from '../../components/common'
 import { GrupoCard, GrupoForm, GrupoDetailModal } from '../../components/grupos'
 import useGrupoStore from '../../stores/grupoStore'
 import { toast } from 'react-hot-toast'
@@ -17,7 +17,7 @@ const GruposPage = () => {
     fetchGrupos,
     createGrupo,
     updateGrupo,
-    deleteGrupo,
+    toggleEstado,
     setGrupoSeleccionado,
     grupoSeleccionado,
     clearGrupoSeleccionado,
@@ -26,8 +26,6 @@ const GruposPage = () => {
 
   const [showModal, setShowModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [grupoToDelete, setGrupoToDelete] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [serverErrors, setServerErrors] = useState(null)
 
@@ -61,6 +59,7 @@ const GruposPage = () => {
     setShowDetailModal(true)
   }
 
+<<<<<<< Updated upstream
   const handleDelete = (grupo) => {
     setGrupoToDelete(grupo)
     setShowDeleteDialog(true)
@@ -76,6 +75,14 @@ const GruposPage = () => {
       } else {
         toast.error(getFriendlyErrorMessage(result.message))
       }
+=======
+  const handleToggleStatus = async (grupo) => {
+    const result = await toggleEstado(grupo.id)
+    if (result.success) {
+      toast.success(result.message)
+    } else {
+      toast.error(result.error || 'Error al cambiar el estado')
+>>>>>>> Stashed changes
     }
   }
 
@@ -251,7 +258,7 @@ const GruposPage = () => {
               key={grupo.id}
               grupo={grupo}
               onEdit={handleEdit}
-              onDelete={handleDelete}
+              onToggleStatus={handleToggleStatus}
               onView={handleView}
             />
           ))}
@@ -285,17 +292,6 @@ const GruposPage = () => {
           }}
         />
       )}
-
-      {/* Dialog de Confirmación */}
-      <ConfirmDialog
-        isOpen={showDeleteDialog}
-        onClose={() => setShowDeleteDialog(false)}
-        onConfirm={confirmDelete}
-        title="Eliminar Grupo"
-        message={`¿Estás seguro de que deseas eliminar el grupo "${grupoToDelete?.nombre}"? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar"
-        confirmVariant="danger"
-      />
     </div>
   )
 }

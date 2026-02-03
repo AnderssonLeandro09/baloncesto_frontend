@@ -259,6 +259,20 @@ const EstudianteVinculacionService = {
       return processError(error)
     }
   },
+
+  /**
+   * Toggle del estado de un estudiante (habilitar/deshabilitar)
+   * @param {number} id - ID del estudiante
+   * @returns {Promise<Object>} Estudiante actualizado
+   */
+  toggleEstado: async (id) => {
+    try {
+      const response = await apiClient.post(`${ENDPOINTS.ESTUDIANTES_VINCULACION}${id}/toggle-estado/`, {})
+      return processResponse(response)
+    } catch (error) {
+      return processError(error)
+    }
+  },
 }
 
 export default EstudianteVinculacionService

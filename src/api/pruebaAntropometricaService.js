@@ -40,7 +40,7 @@ const PruebaAntropometricaService = {
    * @param {Object} data - Datos a actualizar
    */
   update: async (id, data) => {
-    const response = await apiClient.put(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/${id}`, data)
+    const response = await apiClient.patch(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/${id}/`, data)
     return response.data
   },
 

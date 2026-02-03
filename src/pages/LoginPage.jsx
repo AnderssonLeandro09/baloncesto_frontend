@@ -77,8 +77,12 @@ const LoginPage = () => {
       const errorMsg = error.response?.data?.error
       
       if (errorMsg) {
-        // Verificar si es un error de cuenta inactiva (mostrar debajo del email)
-        if (errorMsg.toLowerCase().includes('inactiva') || errorMsg.toLowerCase().includes('desactivada')) {
+        // Mensajes específicos sincronizados con el backend
+        if (errorMsg === 'Clave incorrecta') {
+          setErrors({ password: 'Clave incorrecta' })
+        } else if (errorMsg === 'La cuenta no existe') {
+          setErrors({ email: 'La cuenta no existe' })
+        } else if (errorMsg.toLowerCase().includes('inactiva') || errorMsg.toLowerCase().includes('desactivada')) {
           setErrors({ email: errorMsg })
         } else if (errorMsg.toLowerCase().includes('contraseña') || errorMsg.toLowerCase().includes('clave')) {
           setErrors({ password: errorMsg })
@@ -88,7 +92,7 @@ const LoginPage = () => {
           toast.error(errorMsg)
         }
       } else if (error.message === 'Network Error' || !error.response) {
-        toast.error('No se pudo conectar con el servidor. Verifique su conexión.')
+        toast.error('No se pudo conectar con el servidor')
       } else {
         toast.error('Ocurrió un error inesperado al iniciar sesión')
       }

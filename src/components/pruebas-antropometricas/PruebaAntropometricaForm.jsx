@@ -247,7 +247,8 @@ const PruebaAntropometricaForm = ({
         const response = await apiClient.get('/inscripciones', {
           params: { estado: true }
         });
-        const inscripciones = response.data?.results || response.data || [];
+        const rawInscripciones = response.data?.data ?? response.data?.results ?? response.data ?? [];
+        const inscripciones = Array.isArray(rawInscripciones) ? rawInscripciones : [];
         
         // Extraer atletas únicos de las inscripciones
         const atletasMap = new Map();
@@ -271,7 +272,8 @@ const PruebaAntropometricaForm = ({
         // Si falla, intentar cargar desde grupos-atletas
         try {
           const response = await apiClient.get('/grupos-atletas');
-          const grupos = response.data?.results || response.data || [];
+          const rawGrupos = response.data?.data ?? response.data?.results ?? response.data ?? [];
+          const grupos = Array.isArray(rawGrupos) ? rawGrupos : [];
           const atletasSet = new Set();
           const atletasList = [];
           

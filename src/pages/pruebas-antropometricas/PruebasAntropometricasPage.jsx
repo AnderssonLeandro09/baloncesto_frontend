@@ -40,7 +40,8 @@ const PruebasAntropometricasPage = () => {
         const response = await apiClient.get('/inscripciones', {
           params: { estado: true }
         });
-        const inscripciones = response.data?.results || response.data || [];
+        const rawInscripciones = response.data?.data ?? response.data?.results ?? response.data ?? [];
+        const inscripciones = Array.isArray(rawInscripciones) ? rawInscripciones : [];
         
         const atletasMap = new Map();
         inscripciones.forEach((inscripcion) => {

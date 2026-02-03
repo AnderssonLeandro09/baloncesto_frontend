@@ -72,7 +72,8 @@ export const SEXOS_VALIDOS = ['M', 'F', 'O']
 
 /**
  * Mensajes de error amigables para mostrar al usuario
- * SINCRONIZADOS CON BACKEND - Los mensajes deben ser idénticos
+ * SINCRONIZADOS CON BACKEND - Los mensajes deben ser IDÉNTICOS
+ * Ver: backend/basketball/services/inscripcion_service.py (ErrorMessages)
  * @constant
  */
 export const MENSAJES_ERROR = {
@@ -82,12 +83,12 @@ export const MENSAJES_ERROR = {
   APELLIDO_REQUERIDO: 'Por favor, ingresa los apellidos del atleta',
   APELLIDO_MUY_CORTO: 'Los apellidos deben tener al menos 2 caracteres',
   CEDULA_REQUERIDA: 'La cédula es requerida.',
-  CEDULA_INVALIDA: 'La cédula ingresada no es válida.',
+  // SIMPLIFICADO: Solo valida formato (10 dígitos numéricos)
+  CEDULA_INVALIDA: 'La cédula debe tener exactamente 10 dígitos numéricos',
   CEDULA_FORMATO: 'La cédula debe contener solo dígitos numéricos.',
   CEDULA_LONGITUD: 'La cédula debe tener exactamente 10 dígitos.',
-  CEDULA_PROVINCIA_INVALIDA: 'Código de provincia inválido en la cédula.',
-  CEDULA_DIGITO_VERIFICADOR: 'El dígito verificador de la cédula es incorrecto.',
-  CEDULA_DUPLICADA: 'Este atleta ya tiene una inscripción activa. Verifica el número de cédula',
+  // MENSAJE UNIFICADO CON BACKEND (ErrorMessages.ATLETA_YA_REGISTRADO)
+  CEDULA_DUPLICADA: 'El atleta ya se encuentra registrado.',
   TELEFONO_INVALIDO: 'El teléfono debe tener 10 dígitos',
   TELEFONO_FORMATO: 'El teléfono solo puede contener números',
   EMAIL_INVALIDO: 'Por favor, ingresa un correo electrónico válido',
@@ -205,17 +206,16 @@ export const validarSoloNumeros = (value) => {
 }
 
 /**
- * Valida una cédula ecuatoriana con algoritmo de módulo 10.
- * Sincronizado con la validación del backend (PersonaSerializer).
+ * Valida una cédula - Solo verifica formato (10 dígitos numéricos).
+ * 
+ * IMPORTANTE: Se eliminó la validación del algoritmo módulo 10 ecuatoriano.
+ * La verificación de duplicados se realiza contra el backend.
  * 
  * Reglas:
  * - Exactamente 10 dígitos numéricos
- * - Código de provincia válido (01-24)
- * - Tercer dígito < 6
- * - Dígito verificador correcto (módulo 10)
  * 
  * @param {string} cedula - Número de cédula
- * @returns {boolean} true si la cédula es válida
+ * @returns {boolean} true si la cédula tiene formato válido
  */
 export const validarCedula = (cedula) => {
   if (!cedula) return false
@@ -223,39 +223,21 @@ export const validarCedula = (cedula) => {
   // Limpiar caracteres no numéricos
   const cedulaLimpia = cedula.replace(/\D/g, '')
   
-  // Debe tener exactamente 10 dígitos
+  // Debe tener exactamente 10 dígitos numéricos
   if (cedulaLimpia.length !== LIMITES_TEXTO.CEDULA_EXACTA) return false
   
   // Validar que solo contenga números
   if (!validarSoloNumeros(cedulaLimpia)) return false
   
-  // Validar código de provincia (01-24)
-  const provincia = parseInt(cedulaLimpia.substring(0, 2), 10)
-  if (provincia < 1 || provincia > 24) return false
-  
-  // El tercer dígito debe ser menor a 6
-  const tercerDigito = parseInt(cedulaLimpia[2], 10)
-  if (tercerDigito >= 6) return false
-  
-  // Algoritmo de validación módulo 10
-  const coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2]
-  let suma = 0
-  
-  for (let i = 0; i < 9; i++) {
-    let valor = parseInt(cedulaLimpia[i], 10) * coeficientes[i]
-    if (valor >= 10) valor -= 9
-    suma += valor
-  }
-  
-  const digitoVerificadorCalculado = suma % 10 === 0 ? 0 : 10 - (suma % 10)
-  const digitoVerificadorReal = parseInt(cedulaLimpia[9], 10)
-  
-  return digitoVerificadorCalculado === digitoVerificadorReal
+  return true
 }
 
 /**
- * Valida una cédula ecuatoriana y retorna el error específico si hay alguno.
- * Sincronizado con los mensajes del backend.
+ * Valida una cédula y retorna el error específico si hay alguno.
+ * 
+ * IMPORTANTE: Se eliminó la validación del algoritmo módulo 10 ecuatoriano.
+ * Solo se valida el formato (10 dígitos numéricos).
+ * La verificación de duplicados se realiza en tiempo real contra el backend.
  * 
  * @param {string} cedula - Número de cédula
  * @returns {{ valido: boolean, error: string|null }} Resultado de validación con mensaje de error
@@ -278,35 +260,7 @@ export const validarCedulaDetallado = (cedula) => {
     return { valido: false, error: MENSAJES_ERROR.CEDULA_LONGITUD }
   }
   
-  // Validar código de provincia (01-24)
-  const provincia = parseInt(cedulaLimpia.substring(0, 2), 10)
-  if (provincia < 1 || provincia > 24) {
-    return { valido: false, error: MENSAJES_ERROR.CEDULA_PROVINCIA_INVALIDA }
-  }
-  
-  // El tercer dígito debe ser menor a 6
-  const tercerDigito = parseInt(cedulaLimpia[2], 10)
-  if (tercerDigito >= 6) {
-    return { valido: false, error: MENSAJES_ERROR.CEDULA_INVALIDA }
-  }
-  
-  // Algoritmo de validación módulo 10
-  const coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2]
-  let suma = 0
-  
-  for (let i = 0; i < 9; i++) {
-    let valor = parseInt(cedulaLimpia[i], 10) * coeficientes[i]
-    if (valor >= 10) valor -= 9
-    suma += valor
-  }
-  
-  const digitoVerificadorCalculado = suma % 10 === 0 ? 0 : 10 - (suma % 10)
-  const digitoVerificadorReal = parseInt(cedulaLimpia[9], 10)
-  
-  if (digitoVerificadorCalculado !== digitoVerificadorReal) {
-    return { valido: false, error: MENSAJES_ERROR.CEDULA_DIGITO_VERIFICADOR }
-  }
-  
+  // Formato válido - la verificación de duplicados se hace contra el backend
   return { valido: true, error: null }
 }
 

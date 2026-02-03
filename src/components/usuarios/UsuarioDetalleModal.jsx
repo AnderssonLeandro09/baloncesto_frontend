@@ -34,12 +34,6 @@ const UsuarioDetalleModal = ({
     return `${firstName} ${lastName}`.trim() || 'N/A'
   }
 
-  const getGenero = () => {
-    if (!persona?.gender) return 'N/A'
-    const generos = { 'M': 'Masculino', 'F': 'Femenino', 'O': 'Otro' }
-    return generos[persona.gender] || 'N/A'
-  }
-
   return (
     <Modal
       isOpen={isOpen}
@@ -73,11 +67,6 @@ const UsuarioDetalleModal = ({
               icon={FiHash}
               label="Identificación"
               value={persona?.identification}
-            />
-            <InfoItem 
-              icon={FiUsers}
-              label="Género"
-              value={getGenero()}
             />
             <InfoItem 
               icon={FiPhone}

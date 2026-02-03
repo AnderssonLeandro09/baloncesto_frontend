@@ -3,6 +3,7 @@
  */
 import { create } from 'zustand'
 import { PruebaAntropometricaService } from '../api'
+import { resolveBackendError } from '../config/errorMessages'
 
 const usePruebaAntropometricaStore = create((set, get) => ({
   // Estado
@@ -10,7 +11,15 @@ const usePruebaAntropometricaStore = create((set, get) => ({
   pruebaSeleccionada: null,
   loading: false,
   error: null,
-  filtros: { search: '', page: 1, pageSize: 10 },
+  filtros: { 
+    search: '', 
+    page: 1, 
+    pageSize: 10,
+    atleta: undefined,
+    estado: undefined,
+    fecha_inicio: undefined,
+    fecha_fin: undefined
+  },
   totalItems: 0,
 
   // Acciones
@@ -26,13 +35,14 @@ const usePruebaAntropometricaStore = create((set, get) => ({
     set({ loading: true, error: null })
     try {
       const response = await PruebaAntropometricaService.getAll(get().filtros)
+      const data = response.results || response || []
       set({ 
-        pruebas: response.data?.results || response.data || [],
-        totalItems: response.data?.count || 0,
+        pruebas: Array.isArray(data) ? data : [],
+        totalItems: response.count || (Array.isArray(data) ? data.length : 0),
         loading: false 
       })
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: resolveBackendError(error), loading: false })
     }
   },
 
@@ -41,13 +51,13 @@ const usePruebaAntropometricaStore = create((set, get) => ({
     try {
       const response = await PruebaAntropometricaService.create(data)
       set((state) => ({ 
-        pruebas: [...state.pruebas, response.data],
+        pruebas: [...state.pruebas, response],
         loading: false 
       }))
-      return { success: true, data: response.data }
+      return { success: true, data: response }
     } catch (error) {
-      set({ error: error.message, loading: false })
-      return { success: false, error: error.message }
+      set({ error: resolveBackendError(error), loading: false })
+      throw error
     }
   },
 
@@ -56,14 +66,14 @@ const usePruebaAntropometricaStore = create((set, get) => ({
     try {
       const response = await PruebaAntropometricaService.update(id, data)
       set((state) => ({
-        pruebas: state.pruebas.map(p => p.id === id ? response.data : p),
+        pruebas: state.pruebas.map(p => p.id === id ? response : p),
         pruebaSeleccionada: null,
         loading: false
       }))
-      return { success: true, data: response.data }
+      return { success: true, data: response }
     } catch (error) {
-      set({ error: error.message, loading: false })
-      return { success: false, error: error.message }
+      set({ error: resolveBackendError(error), loading: false })
+      throw error
     }
   },
 
@@ -77,8 +87,46 @@ const usePruebaAntropometricaStore = create((set, get) => ({
       }))
       return { success: true }
     } catch (error) {
-      set({ error: error.message, loading: false })
-      return { success: false, error: error.message }
+      set({ error: resolveBackendError(error), loading: false })
+      throw error
+    }
+  },
+
+  toggleEstadoPrueba: async (id) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await PruebaAntropometricaService.toggleEstado(id)
+      set((state) => ({
+        pruebas: state.pruebas.map(p => p.id === id ? response : p),
+        loading: false
+      }))
+      return { success: true, data: response }
+    } catch (error) {
+      set({ error: resolveBackendError(error), loading: false })
+      throw error
+    }
+  },
+
+  getPruebasByAtleta: async (atletaId) => {
+    try {
+      const response = await PruebaAntropometricaService.getByAtleta(atletaId)
+      const data = response.results || response || []
+      return Array.isArray(data) ? data : []
+    } catch (error) {
+      console.error('Error fetching pruebas by atleta:', error)
+      return []
+    }
+  },
+
+  shareReport: async (id, data) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await PruebaAntropometricaService.shareReport(id, data)
+      set({ loading: false })
+      return { success: true, data: response }
+    } catch (error) {
+      set({ error: resolveBackendError(error), loading: false })
+      throw error
     }
   },
 

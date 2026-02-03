@@ -22,14 +22,11 @@ export const TIPO_INSCRIPCION = {
   TRANSFERENCIA: 'TRANSFERENCIA',
 }
 
-// Tipos de prueba física (sincronizado con backend)
+// Tipos de prueba físics
 export const TIPO_PRUEBA = {
-  RESISTENCIA: 'RESISTENCIA',
-  VELOCIDAD: 'VELOCIDAD',
   FUERZA: 'FUERZA',
-  FLEXIBILIDAD: 'FLEXIBILIDAD',
+  VELOCIDAD: 'VELOCIDAD',
   AGILIDAD: 'AGILIDAD',
-  COORDINACION: 'COORDINACION',
 }
 
 // Opciones de sexo

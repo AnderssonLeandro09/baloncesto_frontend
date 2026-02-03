@@ -156,6 +156,40 @@ const useEstudianteVinculacionStore = create((set, get) => ({
     }
   },
 
+  toggleEstado: async (id) => {
+    set({ loading: true, error: null, fieldErrors: {} })
+    try {
+      const result = await EstudianteVinculacionService.toggleEstado(id)
+      
+      if (result.success) {
+        set((state) => ({
+          estudiantes: state.estudiantes.map(e => 
+            e.estudiante?.id === parseInt(id) ? result.data : e
+          ),
+          loading: false
+        }))
+        return { 
+          success: true, 
+          data: result.data,
+          message: result.message || 'Estado actualizado exitosamente'
+        }
+      } else {
+        set({ 
+          error: result.message,
+          fieldErrors: result.fieldErrors || {},
+          loading: false 
+        })
+        return { 
+          success: false, 
+          error: result.message 
+        }
+      }
+    } catch (error) {
+      set({ error: error.message, loading: false })
+      return { success: false, error: error.message }
+    }
+  },
+
   reset: () => set({
     estudiantes: [],
     estudianteSeleccionado: null,

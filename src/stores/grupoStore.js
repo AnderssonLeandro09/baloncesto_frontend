@@ -153,6 +153,45 @@ const useGrupoStore = create((set, get) => ({
     }
   },
 
+  toggleEstado: async (id) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await GrupoAtletaService.toggleEstado(id)
+      const grupoActualizado = response?.data || response
+      set((state) => ({
+        grupos: state.grupos.map(g => g.id === id ? grupoActualizado : g),
+        loading: false
+      }))
+      return { 
+        success: true, 
+        data: grupoActualizado,
+        message: response?.msg || 'Estado actualizado exitosamente'
+    try {
+      const response = await GrupoAtletaService.delete(id)
+      
+      if (response.success) {
+        set((state) => ({
+          grupos: state.grupos.filter(g => g.id !== id),
+          loading: false
+        }))
+        return { 
+          success: true,
+          message: response.message || 'Grupo eliminado correctamente'
+        }
+      } else {
+        set({ error: response.message, loading: false })
+        return { 
+          success: false, 
+          message: response.message || 'Error al eliminar el grupo'
+        }
+      }
+    } catch (error) {
+      const errorMsg = 'Error de conexión al eliminar el grupo'
+      set({ error: errorMsg, loading: false })
+      return { success: false, message: errorMsg }
+    }
+  },
+
   reset: () => set({
     grupos: [],
     grupoSeleccionado: null,

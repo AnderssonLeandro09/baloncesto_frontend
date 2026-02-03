@@ -3,6 +3,7 @@
  */
 import { create } from 'zustand'
 import { EntrenadorService } from '../api'
+import { resolveBackendError } from '../config/errorMessages'
 
 const useEntrenadorStore = create((set, get) => ({
   // Estado
@@ -32,7 +33,7 @@ const useEntrenadorStore = create((set, get) => ({
         loading: false 
       })
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: resolveBackendError(error), loading: false })
     }
   },
 
@@ -46,8 +47,9 @@ const useEntrenadorStore = create((set, get) => ({
       }))
       return { success: true, data: response }
     } catch (error) {
-      set({ error: error.message, loading: false })
-      return { success: false, error: error.message }
+      const message = resolveBackendError(error)
+      set({ error: message, loading: false })
+      return { success: false, error: message }
     }
   },
 
@@ -62,8 +64,9 @@ const useEntrenadorStore = create((set, get) => ({
       }))
       return { success: true, data: response }
     } catch (error) {
-      set({ error: error.message, loading: false })
-      return { success: false, error: error.message }
+      const message = resolveBackendError(error)
+      set({ error: message, loading: false })
+      return { success: false, error: message }
     }
   },
 
@@ -77,8 +80,9 @@ const useEntrenadorStore = create((set, get) => ({
       }))
       return { success: true }
     } catch (error) {
-      set({ error: error.message, loading: false })
-      return { success: false, error: error.message }
+      const message = resolveBackendError(error)
+      set({ error: message, loading: false })
+      return { success: false, error: message }
     }
   },
 

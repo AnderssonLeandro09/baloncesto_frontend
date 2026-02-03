@@ -1,12 +1,14 @@
 /**
  * Componente InscripcionList
  * Tabla estilizada con Tailwind CSS para listar inscripciones
- * Incluye toggle de estado (habilitar/deshabilitar)
+ * Incluye toggle de estado (habilitar/deshabilitar) y paginación
  */
 
 import { FiEdit2, FiEye, FiToggleLeft, FiToggleRight, FiUser, FiCalendar } from 'react-icons/fi'
-import { Table, Button, Card } from '../common'
+import { Table, Button, Card, Pagination } from '../common'
 import { formatDate } from '../../utils/formatters'
+import { paginateData, PAGINATION_CONFIG } from '../../utils/pagination'
+import { useState, useMemo } from 'react'
 
 const InscripcionList = ({ 
   inscripciones = [], 
@@ -15,6 +17,24 @@ const InscripcionList = ({
   onToggleStatus, 
   loading = false 
 }) => {
+  // Estado de paginación local con valor por defecto de 10
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(PAGINATION_CONFIG.defaultPageSize)
+
+  // Paginar datos
+  const { data: paginatedInscripciones, pagination } = useMemo(() => {
+    return paginateData(inscripciones, currentPage, pageSize)
+  }, [inscripciones, currentPage, pageSize])
+
+  // Handlers de paginación
+  const handlePageChange = (page) => {
+    setCurrentPage(page)
+  }
+
+  const handlePageSizeChange = (size) => {
+    setPageSize(size)
+    setCurrentPage(1) // Reset a primera página
+  }
   // Definición de columnas de la tabla
   const columns = [
     {
@@ -154,20 +174,24 @@ const InscripcionList = ({
       <div className="overflow-x-auto">
         <Table
           columns={columns}
-          data={inscripciones}
+          data={paginatedInscripciones}
           loading={loading}
           emptyMessage="No se encontraron inscripciones registradas"
           className="min-w-full"
         />
       </div>
       
-      {/* Footer con contador */}
+      {/* Paginación */}
       {!loading && inscripciones.length > 0 && (
-        <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Mostrando <span className="font-medium text-gray-700">{inscripciones.length}</span> inscripción(es)
-          </p>
-        </div>
+        <Pagination
+          currentPage={pagination.currentPage}
+          totalPages={pagination.totalPages}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.totalItems}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          showPageSizeSelector={true}
+        />
       )}
     </Card>
   )

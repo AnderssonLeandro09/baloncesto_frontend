@@ -3,9 +3,9 @@
  */
 import { create } from 'zustand'
 import { PruebaFisicaService } from '../api'
+import { resolveBackendError } from '../config/errorMessages'
 import { 
-  MENSAJES_EXITO, 
-  parsearErrorBackend 
+  MENSAJES_EXITO
 } from '../utils/validacionesPruebasFisicas'
 import { 
   PAGINATION_CONFIG, 
@@ -82,7 +82,7 @@ const usePruebaFisicaStore = create((set, get) => ({
         loading: false 
       })
     } catch (error) {
-      const { mensaje } = parsearErrorBackend(error, error.code)
+      const mensaje = resolveBackendError(error)
       set({ 
         error: mensaje, 
         loading: false,
@@ -105,16 +105,13 @@ const usePruebaFisicaStore = create((set, get) => ({
       }))
       return { success: true, data: response, message: MENSAJES_EXITO.CREAR }
     } catch (error) {
-      const { mensaje, erroresCampos } = parsearErrorBackend(
-        { msg: error.originalMessage || error.message, data: error.fieldErrors },
-        error.code
-      )
+      const mensaje = resolveBackendError(error)
       set({ 
         error: mensaje, 
-        fieldErrors: error.fieldErrors || erroresCampos,
+        fieldErrors: error.fieldErrors || {},
         loading: false 
       })
-      return { success: false, error: mensaje, fieldErrors: error.fieldErrors || erroresCampos }
+      return { success: false, error: mensaje, fieldErrors: error.fieldErrors || {} }
     }
   },
 
@@ -129,16 +126,13 @@ const usePruebaFisicaStore = create((set, get) => ({
       }))
       return { success: true, data: response, message: MENSAJES_EXITO.ACTUALIZAR }
     } catch (error) {
-      const { mensaje, erroresCampos } = parsearErrorBackend(
-        { msg: error.originalMessage || error.message, data: error.fieldErrors },
-        error.code
-      )
+      const mensaje = resolveBackendError(error)
       set({ 
         error: mensaje, 
-        fieldErrors: error.fieldErrors || erroresCampos,
+        fieldErrors: error.fieldErrors || {},
         loading: false 
       })
-      return { success: false, error: mensaje, fieldErrors: error.fieldErrors || erroresCampos }
+      return { success: false, error: mensaje, fieldErrors: error.fieldErrors || {} }
     }
   },
 
@@ -156,7 +150,7 @@ const usePruebaFisicaStore = create((set, get) => ({
       }))
       return { success: true }
     } catch (error) {
-      const { mensaje } = parsearErrorBackend(error, error.code)
+      const mensaje = resolveBackendError(error)
       set({ error: mensaje, loading: false })
       return { success: false, error: mensaje }
     }
@@ -177,7 +171,7 @@ const usePruebaFisicaStore = create((set, get) => ({
         message: wasActive ? MENSAJES_EXITO.DESACTIVAR : MENSAJES_EXITO.ACTIVAR 
       }
     } catch (error) {
-      const { mensaje } = parsearErrorBackend(error, error.code)
+      const mensaje = resolveBackendError(error)
       set({ error: mensaje, loading: false })
       return { success: false, error: mensaje }
     }

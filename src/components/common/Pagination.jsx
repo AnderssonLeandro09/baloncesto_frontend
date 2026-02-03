@@ -1,9 +1,9 @@
 /**
- * Componente de paginación
+ * Componente de paginación con selector de tamaño de página
  */
 
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi'
-import { PAGINATION } from '../../config/app.config'
+import { PAGINATION_CONFIG } from '../../utils/pagination'
 
 const Pagination = ({
   currentPage,
@@ -13,8 +13,9 @@ const Pagination = ({
   onPageChange,
   onPageSizeChange,
   showPageSizeSelector = true,
+  pageSizeOptions = [10, 25, 50, 100],
 }) => {
-  const startItem = (currentPage - 1) * pageSize + 1
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const endItem = Math.min(currentPage * pageSize, totalItems)
 
   // Generar números de página a mostrar
@@ -39,6 +40,7 @@ const Pagination = ({
   if (totalItems === 0) return null
 
   return (
+<<<<<<< Updated upstream
     <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
       {/* Info de items */}
       <div className="flex items-center">
@@ -62,6 +64,37 @@ const Pagination = ({
             ))}
           </select>
         )}
+=======
+    <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6 gap-3">
+      {/* Información y selector de tamaño */}
+      <div className="flex items-center gap-4">
+        {/* Selector de tamaño de página */}
+        {showPageSizeSelector && onPageSizeChange && (
+          <div className="flex items-center gap-2">
+            <label htmlFor="pageSize" className="text-sm text-gray-600 whitespace-nowrap">
+              Mostrar:
+            </label>
+            <select
+              id="pageSize"
+              value={pageSize}
+              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              className="px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            >
+              {pageSizeOptions.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-gray-600">por página</span>
+          </div>
+        )}
+        
+        {/* Info de registros */}
+        <span className="text-sm text-gray-600">
+          {startItem}-{endItem} de {totalItems} registros
+        </span>
+>>>>>>> Stashed changes
       </div>
 
       {/* Controles de paginación */}

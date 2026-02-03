@@ -15,6 +15,24 @@ const InscripcionList = ({
   onToggleStatus, 
   loading = false 
 }) => {
+  // Estado de paginación local con valor por defecto de 10
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(PAGINATION_CONFIG.defaultPageSize)
+
+  // Paginar datos
+  const { data: paginatedInscripciones, pagination } = useMemo(() => {
+    return paginateData(inscripciones, currentPage, pageSize)
+  }, [inscripciones, currentPage, pageSize])
+
+  // Handlers de paginación
+  const handlePageChange = (page) => {
+    setCurrentPage(page)
+  }
+
+  const handlePageSizeChange = (size) => {
+    setPageSize(size)
+    setCurrentPage(1) // Reset a primera página
+  }
   // Definición de columnas de la tabla
   const columns = [
     {

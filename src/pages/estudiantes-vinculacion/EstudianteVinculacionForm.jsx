@@ -229,6 +229,7 @@ const EstudianteVinculacionForm = ({ isOpen, onClose, serverErrors = {} }) => {
               required
               maxLength={ESTUDIANTE_VINCULACION_CONSTRAINTS.identification.length}
               placeholder="Ingresa la cédula de 10 dígitos"
+              disabled={isEdit}
             />
 
             <div className="grid grid-cols-2 gap-3">

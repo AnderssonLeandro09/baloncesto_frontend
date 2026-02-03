@@ -38,6 +38,24 @@ const processResponse = (response) => {
 }
 
 /**
+ * Detecta si un mensaje de error indica cédula duplicada
+ * @param {string} message - Mensaje de error
+ * @returns {boolean}
+ */
+const isDuplicateCedulaError = (message) => {
+  if (!message) return false
+  const lowerMessage = message.toLowerCase()
+  return (
+    lowerMessage.includes('ya existe un estudiante') ||
+    lowerMessage.includes('registrado con esta cédula') ||
+    lowerMessage.includes('ya esta registrada') ||
+    lowerMessage.includes('already registered') ||
+    lowerMessage.includes('cédula duplicada') ||
+    lowerMessage.includes('cedula duplicada')
+  )
+}
+
+/**
  * Procesa errores del backend y extrae información útil
  * @param {Error} error - Error de axios
  * @returns {Object} Error procesado con detalles
@@ -61,8 +79,14 @@ const processError = (error) => {
     const fieldErrors = {}
     let mainMessage = data.msg || 'Ocurrió un error'
 
+    // Detectar error de cédula duplicada y asignar al campo identification
+    if (isDuplicateCedulaError(mainMessage) || isDuplicateCedulaError(String(data.data))) {
+      fieldErrors.identification = 'Ya existe un estudiante registrado con esta cédula'
+      mainMessage = 'Ya existe un estudiante registrado con esta cédula'
+    }
+
     // Si data.data contiene errores de campo
-    if (data.data && typeof data.data === 'object') {
+    if (data.data && typeof data.data === 'object' && !isDuplicateCedulaError(mainMessage)) {
       // Procesar errores de campos anidados (persona, estudiante)
       Object.entries(data.data).forEach(([key, value]) => {
         if (Array.isArray(value)) {
@@ -82,7 +106,7 @@ const processError = (error) => {
     }
 
     // Generar mensaje amigable
-    if (Object.keys(fieldErrors).length > 0) {
+    if (Object.keys(fieldErrors).length > 0 && !isDuplicateCedulaError(mainMessage)) {
       const firstField = Object.keys(fieldErrors)[0]
       const firstError = fieldErrors[firstField]
       const fieldLabel = getFieldLabel(firstField)
@@ -102,6 +126,19 @@ const processError = (error) => {
   if (data && typeof data === 'object') {
     const fieldErrors = {}
     let errorMessages = []
+
+    // Verificar primero si es un error de cédula duplicada
+    const dataStr = JSON.stringify(data)
+    if (isDuplicateCedulaError(dataStr)) {
+      fieldErrors.identification = 'Ya existe un estudiante registrado con esta cédula'
+      return {
+        success: false,
+        message: 'Ya existe un estudiante registrado con esta cédula',
+        data: null,
+        code: status,
+        fieldErrors
+      }
+    }
 
     Object.entries(data).forEach(([key, value]) => {
       if (key === 'detail') {

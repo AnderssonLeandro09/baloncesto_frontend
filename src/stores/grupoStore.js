@@ -166,10 +166,29 @@ const useGrupoStore = create((set, get) => ({
         success: true, 
         data: grupoActualizado,
         message: response?.msg || 'Estado actualizado exitosamente'
+    try {
+      const response = await GrupoAtletaService.delete(id)
+      
+      if (response.success) {
+        set((state) => ({
+          grupos: state.grupos.filter(g => g.id !== id),
+          loading: false
+        }))
+        return { 
+          success: true,
+          message: response.message || 'Grupo eliminado correctamente'
+        }
+      } else {
+        set({ error: response.message, loading: false })
+        return { 
+          success: false, 
+          message: response.message || 'Error al eliminar el grupo'
+        }
       }
     } catch (error) {
-      set({ error: error.message, loading: false })
-      return { success: false, error: error.message }
+      const errorMsg = 'Error de conexión al eliminar el grupo'
+      set({ error: errorMsg, loading: false })
+      return { success: false, message: errorMsg }
     }
   },
 

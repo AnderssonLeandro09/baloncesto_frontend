@@ -40,7 +40,7 @@ const PruebaAntropometricaService = {
    * @param {Object} data - Datos a actualizar
    */
   update: async (id, data) => {
-    const response = await apiClient.put(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/${id}`, data)
+    const response = await apiClient.patch(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/${id}/`, data)
     return response.data
   },
 
@@ -59,6 +59,15 @@ const PruebaAntropometricaService = {
    */
   getByAtleta: async (atletaId) => {
     const response = await apiClient.get(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/atleta/${atletaId}/`)
+    return response.data
+  },
+
+  /**
+   * Obtener atletas habilitados (filtrados por grupos del entrenador)
+   * @returns {Promise<Array>} Lista de atletas habilitados
+   */
+  getAtletasHabilitados: async () => {
+    const response = await apiClient.get(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/atletas-habilitados/`)
     return response.data
   },
 

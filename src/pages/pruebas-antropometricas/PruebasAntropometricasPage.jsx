@@ -4,6 +4,7 @@ import { Card, Button, Select, Pagination, Modal } from '../../components/common
 import { usePruebasAntropometricas } from '../../hooks';
 import { PruebaAntropometricaTable, PruebaAntropometricaModal, PruebaAntropometricaCharts } from '../../components/pruebas-antropometricas';
 import apiClient from '../../api/apiClient';
+import PruebaAntropometricaService from '../../api/pruebaAntropometricaService';
 import toast from 'react-hot-toast';
 
 const PruebasAntropometricasPage = () => {
@@ -14,6 +15,11 @@ const PruebasAntropometricasPage = () => {
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [viewingPrueba, setViewingPrueba] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showToggleModal, setShowToggleModal] = useState(false);
+  const [toggleTarget, setToggleTarget] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareTarget, setShareTarget] = useState(null);
+  const [shareEmail, setShareEmail] = useState('');
 
   const {
     pruebas,
@@ -32,29 +38,23 @@ const PruebasAntropometricasPage = () => {
   useEffect(() => {
     const fetchAtletas = async () => {
       try {
-        const response = await apiClient.get('/inscripciones', {
-          params: { estado: true }
-        });
-        const inscripciones = response.data?.results || response.data || [];
+        // Usar el nuevo endpoint que filtra por grupos del entrenador
+        const atletasHabilitados = await PruebaAntropometricaService.getAtletasHabilitados();
         
-        const atletasMap = new Map();
-        inscripciones.forEach((inscripcion) => {
-          if (inscripcion.atleta && inscripcion.atleta.id) {
-            const atleta = inscripcion.atleta;
-            if (!atletasMap.has(atleta.id)) {
-              const nombre = atleta.nombres || atleta.persona?.first_name || '';
-              const apellido = atleta.apellidos || atleta.persona?.last_name || '';
-              atletasMap.set(atleta.id, {
-                value: atleta.id,
-                label: `${nombre} ${apellido}`.trim() || `Atleta ${atleta.id}`,
-              });
-            }
-          }
+        const atletasFormateados = atletasHabilitados.map((atleta) => {
+          const persona = atleta.persona || {};
+          const nombre = persona.nombre || '';
+          const apellido = persona.apellido || '';
+          return {
+            value: atleta.id,
+            label: `${nombre} ${apellido}`.trim() || `Atleta ${atleta.id}`,
+          };
         });
         
-        setAtletas([{ value: 0, label: 'Todos los atletas' }, ...Array.from(atletasMap.values())]);
+        setAtletas([{ value: 0, label: 'Todos los atletas' }, ...atletasFormateados]);
       } catch (error) {
         console.error('Error fetching atletas:', error);
+        toast.error('Error al cargar la lista de atletas');
         setAtletas([{ value: 0, label: 'Todos los atletas' }]);
       }
     };
@@ -78,17 +78,19 @@ const PruebasAntropometricasPage = () => {
   };
 
   const handleToggleEstado = async (prueba) => {
-    const confirmMessage = prueba.estado
-      ? '¿Está seguro de desactivar esta prueba?'
-      : '¿Está seguro de activar esta prueba?';
+    setToggleTarget(prueba);
+    setShowToggleModal(true);
+  };
 
-    if (!window.confirm(confirmMessage)) return;
-
+  const confirmToggleEstado = async () => {
+    if (!toggleTarget) return;
     try {
-      setActionLoadingId(prueba.id);
-      await toggleEstadoPrueba(prueba.id);
+      setActionLoadingId(toggleTarget.id);
+      await toggleEstadoPrueba(toggleTarget.id);
       toast.success('Estado actualizado correctamente');
       await fetchPruebas();
+      setShowToggleModal(false);
+      setToggleTarget(null);
     } catch (error) {
       const message = error?.response?.data?.error || error?.response?.data?.detail || 'Error al actualizar el estado de la prueba';
       toast.error(message);
@@ -115,27 +117,16 @@ const PruebasAntropometricasPage = () => {
     }
   };
 
-  const handleShareReport = async (prueba) => {
-    const email = window.prompt('Correo electrónico de destino');
-    if (!email) return;
-    
-    // Validación básica de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast.error('Por favor ingrese un correo electrónico válido');
-      return;
-    }
-    
-    try {
-      setActionLoadingId(prueba.id);
-      await shareReport(prueba.id, { email });
-      toast.success('Reporte enviado correctamente');
-    } catch (error) {
-      const message = error?.response?.data?.error || error?.response?.data?.detail || 'Error al enviar el reporte';
-      toast.error(message);
-    } finally {
-      setActionLoadingId(null);
-    }
+  const handleShareReport = (prueba) => {
+    setShareTarget(prueba);
+    setShareEmail('');
+    setShowShareModal(true);
+  };
+
+  const confirmShareReport = () => {
+    toast.info('Esta funcionalidad de compartir por correo electrónico será implementada en futuras versiones');
+    setShowShareModal(false);
+    setShareEmail('');
   };
 
   const handlePrintReport = (prueba) => {
@@ -229,6 +220,108 @@ const PruebasAntropometricasPage = () => {
     setFiltros({ estado, page: 1 });
   };
 
+  const handleFechaInicioFilter = (value) => {
+    const fecha = value || undefined;
+    
+    if (fecha) {
+      // Si hay fecha fin, validar que fecha inicio no sea posterior
+      if (filtros.fecha_fin && new Date(fecha) > new Date(filtros.fecha_fin)) {
+        toast.error('La fecha de inicio no puede ser posterior a la fecha fin');
+        return;
+      }
+      
+      // Validar rango máximo de 30 días si hay fecha fin
+      if (filtros.fecha_fin) {
+        const diffTime = Math.abs(new Date(filtros.fecha_fin) - new Date(fecha));
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays > 30) {
+          toast.error('El rango de fechas no puede ser mayor a 30 días');
+          return;
+        }
+      }
+      
+      // Si no hay fecha fin, calcular y establecer fecha fin automática (30 días después o hoy)
+      if (!filtros.fecha_fin) {
+        const fechaInicio = new Date(fecha);
+        const fechaMaxFin = new Date(fechaInicio);
+        fechaMaxFin.setDate(fechaMaxFin.getDate() + 30);
+        
+        // No puede ser futura
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const fechaFinCalculada = fechaMaxFin > hoy ? hoy : fechaMaxFin;
+        
+        setFiltros({ 
+          fecha_inicio: fecha, 
+          fecha_fin: fechaFinCalculada.toISOString().split('T')[0],
+          page: 1 
+        });
+        return;
+      }
+    }
+    
+    setFiltros({ fecha_inicio: fecha, page: 1 });
+  };
+
+  const handleFechaFinFilter = (value) => {
+    const fecha = value || undefined;
+    
+    if (fecha) {
+      // Si hay fecha inicio, validar que fecha fin no sea anterior
+      if (filtros.fecha_inicio && new Date(fecha) < new Date(filtros.fecha_inicio)) {
+        toast.error('La fecha fin no puede ser anterior a la fecha de inicio');
+        return;
+      }
+      
+      // Validar rango máximo de 30 días
+      if (filtros.fecha_inicio) {
+        const diffTime = Math.abs(new Date(fecha) - new Date(filtros.fecha_inicio));
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays > 30) {
+          toast.error('El rango de fechas no puede ser mayor a 30 días');
+          return;
+        }
+      }
+    }
+    
+    setFiltros({ fecha_fin: fecha, page: 1 });
+  };
+  
+  // Calcular límites de fecha
+  const getFechaInicioMax = () => {
+    const hoy = new Date().toISOString().split('T')[0];
+    return hoy;
+  };
+  
+  const getFechaFinMin = () => {
+    if (filtros.fecha_inicio) {
+      return filtros.fecha_inicio;
+    }
+    return undefined;
+  };
+  
+  const getFechaFinMax = () => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    
+    if (filtros.fecha_inicio) {
+      const fechaInicio = new Date(filtros.fecha_inicio);
+      const fecha30Dias = new Date(fechaInicio);
+      fecha30Dias.setDate(fecha30Dias.getDate() + 30);
+      
+      // Retornar el menor entre hoy y 30 días después
+      const fechaMax = fecha30Dias > hoy ? hoy : fecha30Dias;
+      return fechaMax.toISOString().split('T')[0];
+    }
+    
+    return hoy.toISOString().split('T')[0];
+  };
+
+  const handlePageSizeChange = (e) => {
+    const newPageSize = parseInt(e.target.value);
+    setFiltros({ pageSize: newPageSize, page: 1 });
+  };
+
   // Función auxiliar para obtener nombre del atleta en el modal de detalles
   const getAtletaNombre = (prueba) => {
     if (!prueba?.atleta) return 'N/A';
@@ -284,28 +377,68 @@ const PruebasAntropometricasPage = () => {
       {viewMode === 'table' ? (
         <>
           <Card>
-            <div className="flex flex-wrap gap-4 mb-4">
-              <Select
-                label="Filtrar por Atleta"
-                name="atletaFilter"
-                value={filtros.atleta?.toString() || '0'}
-                onChange={(e) => handleAtletaFilter(e.target.value)}
-                options={atletas}
-                className="w-64"
-              />
-              <Select
-                label="Filtrar por Estado"
-                name="estadoFilter"
-                value={filtros.estado === undefined ? '' : filtros.estado.toString()}
-                onChange={(e) => handleEstadoFilter(e.target.value)}
-                options={[
-                  { value: '', label: 'Todos' },
-                  { value: 'true', label: 'Activos' },
-                  { value: 'false', label: 'Inactivos' },
-                ]}
-                className="w-48"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <div>
+                <Select
+                  label="Filtrar por Atleta"
+                  name="atletaFilter"
+                  value={filtros.atleta?.toString() || '0'}
+                  onChange={(e) => handleAtletaFilter(e.target.value)}
+                  options={atletas}
+                />
+              </div>
+              <div>
+                <Select
+                  label="Filtrar por Estado"
+                  name="estadoFilter"
+                  value={filtros.estado === undefined ? '' : filtros.estado.toString()}
+                  onChange={(e) => handleEstadoFilter(e.target.value)}
+                  options={[
+                    { value: '', label: 'Todos' },
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' },
+                  ]}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha Inicio
+                </label>
+                <input
+                  type="date"
+                  value={filtros.fecha_inicio || ''}
+                  max={getFechaInicioMax()}
+                  onChange={(e) => handleFechaInicioFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha Fin (máx. 30 días)
+                </label>
+                <input
+                  type="date"
+                  value={filtros.fecha_fin || ''}
+                  min={getFechaFinMin()}
+                  max={getFechaFinMax()}
+                  disabled={!filtros.fecha_inicio}
+                  onChange={(e) => handleFechaFinFilter(e.target.value)}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                    !filtros.fecha_inicio ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                />
+              </div>
             </div>
+            {filtros.fecha_inicio && (
+              <div className="text-sm text-gray-600 mb-4">
+                <span className="font-medium">💡 Consejo:</span> El rango seleccionado es de{' '}
+                {filtros.fecha_inicio && filtros.fecha_fin ? (
+                  <>
+                    {Math.ceil((new Date(filtros.fecha_fin) - new Date(filtros.fecha_inicio)) / (1000 * 60 * 60 * 24))} días
+                  </>
+                ) : '30 días (máximo)'}
+              </div>
+            )}
 
             <PruebaAntropometricaTable
               data={pruebas}
@@ -318,11 +451,32 @@ const PruebasAntropometricasPage = () => {
               actionLoadingId={actionLoadingId}
             />
 
-            <div className="mt-4">
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center space-x-4">
+                <div className="text-sm text-gray-700">
+                  Mostrando {pruebas.length > 0 ? ((filtros.page - 1) * (filtros.pageSize || 10)) + 1 : 0} - {Math.min((filtros.page || 1) * (filtros.pageSize || 10), totalItems || 0)} de {totalItems || 0} resultados
+                </div>
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Por página:
+                  </label>
+                  <select
+                    value={filtros.pageSize?.toString() || '10'}
+                    onChange={handlePageSizeChange}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                  >
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                  </select>
+                </div>
+              </div>
               <Pagination
                 currentPage={filtros.page || 1}
-                totalPages={Math.ceil(totalItems / (filtros.page_size || 10)) || 1}
+                totalPages={Math.ceil(totalItems / filtros.pageSize) || 1}
                 onPageChange={(page) => setFiltros({ page })}
+                showPageSizeSelector={false}
               />
             </div>
           </Card>
@@ -413,6 +567,98 @@ const PruebasAntropometricasPage = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal de Activar/Desactivar */}
+      <Modal
+        isOpen={showToggleModal}
+        onClose={() => {
+          setShowToggleModal(false);
+          setToggleTarget(null);
+        }}
+        title={toggleTarget?.estado ? 'Desactivar Prueba' : 'Activar Prueba'}
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            {toggleTarget?.estado
+              ? '¿Está seguro de desactivar esta prueba antropométrica?'
+              : '¿Está seguro de activar esta prueba antropométrica?'}
+          </p>
+
+          {toggleTarget && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+              <p className="font-medium text-gray-900">{getAtletaNombre(toggleTarget)}</p>
+              <p>Fecha: {new Date(toggleTarget.fecha_registro).toLocaleDateString('es-ES')}</p>
+              <p>Estado actual: {toggleTarget.estado ? 'Activo' : 'Inactivo'}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-2 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowToggleModal(false);
+                setToggleTarget(null);
+              }}
+              disabled={actionLoadingId === toggleTarget?.id}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmToggleEstado}
+              isLoading={actionLoadingId === toggleTarget?.id}
+            >
+              {toggleTarget?.estado ? 'Desactivar' : 'Activar'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de Compartir por Correo */}
+      <Modal
+        isOpen={showShareModal}
+        onClose={() => {
+          setShowShareModal(false);
+          setShareTarget(null);
+          setShareEmail('');
+        }}
+        title="Compartir Reporte"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800 font-medium">
+              Esta funcionalidad de compartir por correo electrónico será implementada en futuras versiones
+            </p>
+          </div>
+
+          {shareTarget && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+              <p className="font-medium text-gray-900">{getAtletaNombre(shareTarget)}</p>
+              <p>Fecha: {new Date(shareTarget.fecha_registro).toLocaleDateString('es-ES')}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-2 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowShareModal(false);
+                setShareTarget(null);
+                setShareEmail('');
+              }}
+            >
+              Cerrar
+            </Button>
+            <Button
+              onClick={confirmShareReport}
+              disabled
+            >
+              Compartir por Correo (Próximamente)
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {error && (

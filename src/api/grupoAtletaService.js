@@ -128,11 +128,15 @@ const GrupoAtletaService = {
   /**
    * Toggle del estado de un grupo (habilitar/deshabilitar)
    * @param {number} id - ID del grupo
-   * @returns {Promise<Object>} Grupo actualizado
+   * @returns {Promise<Object>} { success, data, message, errors }
    */
   toggleEstado: async (id) => {
-    const response = await apiClient.post(`${ENDPOINTS.GRUPOS_ATLETAS}${id}/toggle-estado/`, {})
-    return response.data
+    try {
+      const response = await apiClient.post(`${ENDPOINTS.GRUPOS_ATLETAS}/${id}/toggle-estado/`, {})
+      return processResponse(response)
+    } catch (error) {
+      return processError(error)
+    }
   },
 }
 

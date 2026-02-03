@@ -59,30 +59,12 @@ const GruposPage = () => {
     setShowDetailModal(true)
   }
 
-<<<<<<< Updated upstream
-  const handleDelete = (grupo) => {
-    setGrupoToDelete(grupo)
-    setShowDeleteDialog(true)
-  }
-
-  const confirmDelete = async () => {
-    if (grupoToDelete) {
-      const result = await deleteGrupo(grupoToDelete.id)
-      if (result.success) {
-        toast.success(result.message || '¡Listo! El grupo ha sido eliminado')
-        setShowDeleteDialog(false)
-        setGrupoToDelete(null)
-      } else {
-        toast.error(getFriendlyErrorMessage(result.message))
-      }
-=======
   const handleToggleStatus = async (grupo) => {
     const result = await toggleEstado(grupo.id)
     if (result.success) {
       toast.success(result.message)
     } else {
       toast.error(result.error || 'Error al cambiar el estado')
->>>>>>> Stashed changes
     }
   }
 

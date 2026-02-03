@@ -63,6 +63,15 @@ const PruebaAntropometricaService = {
   },
 
   /**
+   * Obtener atletas habilitados (filtrados por grupos del entrenador)
+   * @returns {Promise<Array>} Lista de atletas habilitados
+   */
+  getAtletasHabilitados: async () => {
+    const response = await apiClient.get(`${ENDPOINTS.PRUEBAS_ANTROPOMETRICAS}/atletas-habilitados/`)
+    return response.data
+  },
+
+  /**
    * Cambiar estado de una prueba
    * @param {number} id - ID de la prueba
    */

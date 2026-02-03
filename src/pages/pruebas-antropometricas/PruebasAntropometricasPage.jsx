@@ -4,6 +4,7 @@ import { Card, Button, Select, Pagination, Modal } from '../../components/common
 import { usePruebasAntropometricas } from '../../hooks';
 import { PruebaAntropometricaTable, PruebaAntropometricaModal, PruebaAntropometricaCharts } from '../../components/pruebas-antropometricas';
 import apiClient from '../../api/apiClient';
+import PruebaAntropometricaService from '../../api/pruebaAntropometricaService';
 import toast from 'react-hot-toast';
 
 const PruebasAntropometricasPage = () => {
@@ -37,30 +38,23 @@ const PruebasAntropometricasPage = () => {
   useEffect(() => {
     const fetchAtletas = async () => {
       try {
-        const response = await apiClient.get('/inscripciones', {
-          params: { estado: true }
-        });
-        const rawInscripciones = response.data?.data ?? response.data?.results ?? response.data ?? [];
-        const inscripciones = Array.isArray(rawInscripciones) ? rawInscripciones : [];
+        // Usar el nuevo endpoint que filtra por grupos del entrenador
+        const atletasHabilitados = await PruebaAntropometricaService.getAtletasHabilitados();
         
-        const atletasMap = new Map();
-        inscripciones.forEach((inscripcion) => {
-          if (inscripcion.atleta && inscripcion.atleta.id) {
-            const atleta = inscripcion.atleta;
-            if (!atletasMap.has(atleta.id)) {
-              const nombre = atleta.nombres || atleta.persona?.first_name || '';
-              const apellido = atleta.apellidos || atleta.persona?.last_name || '';
-              atletasMap.set(atleta.id, {
-                value: atleta.id,
-                label: `${nombre} ${apellido}`.trim() || `Atleta ${atleta.id}`,
-              });
-            }
-          }
+        const atletasFormateados = atletasHabilitados.map((atleta) => {
+          const persona = atleta.persona || {};
+          const nombre = persona.nombre || '';
+          const apellido = persona.apellido || '';
+          return {
+            value: atleta.id,
+            label: `${nombre} ${apellido}`.trim() || `Atleta ${atleta.id}`,
+          };
         });
         
-        setAtletas([{ value: 0, label: 'Todos los atletas' }, ...Array.from(atletasMap.values())]);
+        setAtletas([{ value: 0, label: 'Todos los atletas' }, ...atletasFormateados]);
       } catch (error) {
         console.error('Error fetching atletas:', error);
+        toast.error('Error al cargar la lista de atletas');
         setAtletas([{ value: 0, label: 'Todos los atletas' }]);
       }
     };

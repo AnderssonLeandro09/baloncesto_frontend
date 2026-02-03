@@ -30,7 +30,7 @@ export const GrupoSearchTab = ({
       </div>
 
       {/* Información del rango de edad */}
-      {minEdad && maxEdad && !isNaN(minEdad) && !isNaN(maxEdad) && (
+      {Number.isFinite(minEdad) && Number.isFinite(maxEdad) && (
         <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
           Mostrando atletas entre <span className="font-semibold">{minEdad}</span> y{' '}
           <span className="font-semibold">{maxEdad}</span> años
@@ -43,7 +43,7 @@ export const GrupoSearchTab = ({
         <div className="max-h-80 overflow-y-auto">
           {atletasFiltrados.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
-              {minEdad && maxEdad 
+              {Number.isFinite(minEdad) && Number.isFinite(maxEdad) 
                 ? 'No hay atletas disponibles en este rango de edad'
                 : 'Ingrese el rango de edad en la pestaña "Información" para ver atletas disponibles'}
             </div>

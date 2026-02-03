@@ -64,8 +64,8 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
     // Email y password solo son obligatorios en modo creación
     if (!isEdit) {
       if (!values.email) errors.email = 'El email es obligatorio'
-      else if (!isValidEmail(values.email) || !/^[^\s@]+@gmail\.com$/i.test(values.email)) {
-        errors.email = 'El email debe ser un Gmail válido'
+      else if (!isValidEmail(values.email) || !/^[^\s@]+@(gmail\.com|unl\.edu\.ec)$/i.test(values.email)) {
+        errors.email = 'El email debe ser un Gmail válido o un correo institucional UNL (@unl.edu.ec)'
       }
       if (!values.password) {
         errors.password = 'La contraseña es obligatoria'
@@ -153,7 +153,6 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
     setSubmitError(null)
     
     const personaData = {
-      identification: formValues.identification,
       first_name: formValues.first_name,
       last_name: formValues.last_name,
       phono: formValues.phono,
@@ -162,8 +161,9 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
       type_stament: 'ESTUDIANTES'
     }
 
-    // Solo incluir email y password en modo creación
+    // Solo incluir identification, email y password en modo creación
     if (!isEdit) {
+      personaData.identification = formValues.identification
       personaData.email = formValues.email
       personaData.password = formValues.password
     }
@@ -259,6 +259,8 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
               inputMode="numeric"
               pattern="\d*"
               maxLength={10}
+              disabled={isEdit}
+              helperText={isEdit ? 'El DNI no puede ser modificado' : ''}
             />
 
             <div className="grid grid-cols-2 gap-3">

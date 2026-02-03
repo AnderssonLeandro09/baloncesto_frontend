@@ -4,6 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Input, Button } from '../common';
 import apiClient from '../../api/apiClient';
+import PruebaAntropometricaService from '../../api/pruebaAntropometricaService';
 import {
   VALIDACIONES_ANTROPOMETRICAS,
   MENSAJES_ERROR,
@@ -243,66 +244,29 @@ const PruebaAntropometricaForm = ({
     const fetchAtletas = async () => {
       setLoadingAtletas(true);
       try {
-        // Obtener atletas desde inscripciones activas
-        const response = await apiClient.get('/inscripciones', {
-          params: { estado: true }
-        });
-        const rawInscripciones = response.data?.data ?? response.data?.results ?? response.data ?? [];
-        const inscripciones = Array.isArray(rawInscripciones) ? rawInscripciones : [];
+        // Usar el nuevo endpoint que filtra por grupos del entrenador
+        const atletasHabilitados = await PruebaAntropometricaService.getAtletasHabilitados();
         
-        // Extraer atletas únicos de las inscripciones
-        const atletasMap = new Map();
-        inscripciones.forEach((inscripcion) => {
-          if (inscripcion.atleta && inscripcion.atleta.id) {
-            const atleta = inscripcion.atleta;
-            if (!atletasMap.has(atleta.id)) {
-              const nombre = atleta.nombres || atleta.persona?.first_name || '';
-              const apellido = atleta.apellidos || atleta.persona?.last_name || '';
-              atletasMap.set(atleta.id, {
-                value: atleta.id,
-                label: `${nombre} ${apellido}`.trim() || `Atleta ${atleta.id}`,
-              });
-            }
-          }
+        const atletasFormateados = atletasHabilitados.map((atleta) => {
+          const persona = atleta.persona || {};
+          const nombre = persona.nombre || '';
+          const apellido = persona.apellido || '';
+          return {
+            value: atleta.id,
+            label: `${nombre} ${apellido}`.trim() || `Atleta ${atleta.id}`,
+          };
         });
         
-        setAtletas(Array.from(atletasMap.values()));
+        setAtletas(atletasFormateados);
       } catch (error) {
         console.error('Error fetching atletas:', error);
-        // Si falla, intentar cargar desde grupos-atletas
-        try {
-          const response = await apiClient.get('/grupos-atletas');
-          const rawGrupos = response.data?.data ?? response.data?.results ?? response.data ?? [];
-          const grupos = Array.isArray(rawGrupos) ? rawGrupos : [];
-          const atletasSet = new Set();
-          const atletasList = [];
-          
-          grupos.forEach((grupo) => {
-            if (grupo.atletas && Array.isArray(grupo.atletas)) {
-              grupo.atletas.forEach((atleta) => {
-                if (!atletasSet.has(atleta.id)) {
-                  atletasSet.add(atleta.id);
-                  const nombre = atleta.nombres || atleta.persona?.first_name || '';
-                  const apellido = atleta.apellidos || atleta.persona?.last_name || '';
-                  atletasList.push({
-                    value: atleta.id,
-                    label: `${nombre} ${apellido}`.trim() || `Atleta ${atleta.id}`,
-                  });
-                }
-              });
-            }
-          });
-          
-          setAtletas(atletasList);
-        } catch (secondError) {
-          console.error('Error fetching atletas from grupos:', secondError);
-          setAtletas([]);
-        }
+        setAtletas([]);
       } finally {
         setLoadingAtletas(false);
       }
     };
 
+    fetchAtletas();
     fetchAtletas();
   }, []);
 

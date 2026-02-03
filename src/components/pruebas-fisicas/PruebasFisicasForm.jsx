@@ -181,7 +181,7 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading, serverEr
   }
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">      
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4" noValidate>      
       {/* Buscador de Atletas */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700">Atleta</label>
@@ -291,8 +291,6 @@ const PruebasFisicasForm = ({ initialData, onSubmit, onCancel, loading, serverEr
           name="resultado"
           type="number"
           step="0.01"
-          min="0.01"
-          max={RANGOS_MAXIMOS[values.tipo_prueba] || 9999}
           value={values.resultado}
           onChange={handleResultadoChange}
           disabled={loading}

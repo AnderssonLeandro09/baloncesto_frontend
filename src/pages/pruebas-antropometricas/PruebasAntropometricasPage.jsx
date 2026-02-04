@@ -249,26 +249,36 @@ const PruebasAntropometricasPage = () => {
 
   // Filtrado local basado en la búsqueda
   const filteredPruebas = useMemo(() => {
+    console.log('🔍 Filtrando pruebas. Total pruebas:', pruebas.length);
+    console.log('🔍 SearchTerm:', searchTerm);
+    console.log('🔍 Pruebas originales:', pruebas);
+    
     // Si el término de búsqueda tiene menos de 3 caracteres, mostrar todos
     if (searchTerm.length < 3) {
+      console.log('🔍 Retornando todas las pruebas (búsqueda < 3 caracteres)');
       return pruebas;
     }
 
     const search = searchTerm.toLowerCase();
-    return pruebas.filter(prueba => {
+    const filtered = pruebas.filter(prueba => {
       try {
         const atletaNombre = getAtletaNombre(prueba).toLowerCase();
         const fecha = new Date(prueba.fecha_registro).toLocaleDateString('es-ES').toLowerCase();
         const identificacion = (prueba.persona?.identificacion || '').toLowerCase();
         
-        return atletaNombre.includes(search) || 
+        const match = atletaNombre.includes(search) || 
                fecha.includes(search) || 
                identificacion.includes(search);
+        
+        return match;
       } catch (error) {
         console.error('Error filtrando prueba:', error, prueba);
         return false;
       }
     });
+    
+    console.log('🔍 Pruebas filtradas:', filtered.length);
+    return filtered;
   }, [pruebas, searchTerm]);
 
   const handlePageSizeChange = (e) => {

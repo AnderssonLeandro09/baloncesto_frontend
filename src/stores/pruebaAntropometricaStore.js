@@ -16,9 +16,7 @@ const usePruebaAntropometricaStore = create((set, get) => ({
     page: 1, 
     pageSize: 10,
     atleta: undefined,
-    estado: undefined,
-    fecha_inicio: undefined,
-    fecha_fin: undefined
+    estado: undefined
   },
   totalItems: 0,
 
@@ -34,14 +32,19 @@ const usePruebaAntropometricaStore = create((set, get) => ({
   fetchPruebas: async () => {
     set({ loading: true, error: null })
     try {
+      console.log('📊 Fetching pruebas antropométricas con filtros:', get().filtros);
       const response = await PruebaAntropometricaService.getAll(get().filtros)
+      console.log('📊 Response from backend:', response);
       const data = response.results || response || []
+      console.log('📊 Processed data:', data);
+      console.log('📊 Is data array?', Array.isArray(data));
       set({ 
         pruebas: Array.isArray(data) ? data : [],
         totalItems: response.count || (Array.isArray(data) ? data.length : 0),
         loading: false 
       })
     } catch (error) {
+      console.error('❌ Error fetching pruebas:', error);
       set({ error: resolveBackendError(error), loading: false })
     }
   },

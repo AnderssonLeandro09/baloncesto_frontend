@@ -223,12 +223,12 @@ const EstudianteVinculacionForm = ({ isOpen, onClose, serverErrors = {} }) => {
             <h3 className="text-base font-medium text-gray-900 border-b pb-1">Datos Personales</h3>
             
             <InputUsuario
-              label="Identificación (Cédula)"
+              label="Identificación"
               {...register('identification', fieldValidations.identification)}
               error={getFieldError('identification')}
               required
-              maxLength={ESTUDIANTE_VINCULACION_CONSTRAINTS.identification.length}
-              placeholder="Ingresa la cédula de 10 dígitos"
+              maxLength={ESTUDIANTE_VINCULACION_CONSTRAINTS.identification.maxLength}
+              placeholder="Ingresa el número de identificación"
               disabled={isEdit}
             />
 

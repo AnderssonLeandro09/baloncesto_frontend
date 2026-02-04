@@ -13,8 +13,9 @@
 export const ESTUDIANTE_VINCULACION_CONSTRAINTS = {
   // Datos de persona
   identification: {
-    length: 10,
-    pattern: /^\d{10}$/
+    minLength: 5,
+    maxLength: 15,
+    pattern: /^\d+$/
   },
   first_name: {
     minLength: 2,
@@ -58,57 +59,33 @@ export const ESTUDIANTE_VINCULACION_CONSTRAINTS = {
 // ==========================================
 
 /**
- * Valida la cédula ecuatoriana
- * @param {string} value - Cédula a validar
+ * Valida la identificación (cédula o pasaporte numérico)
+ * Se ha deshabilitado la validación de Módulo 10 de Ecuador para permitir otros países
+ * @param {string} value - Identificación a validar
  * @returns {{ valid: boolean, message?: string }}
  */
 export const validateIdentification = (value) => {
   if (!value || typeof value !== 'string') {
-    return { valid: false, message: 'La cédula es obligatoria' }
+    return { valid: false, message: 'La identificación es obligatoria' }
   }
 
   // Limpiar espacios y guiones
-  const cedula = value.replace(/[\s\-]/g, '').trim()
+  const identification = value.replace(/[\s\-]/g, '').trim()
 
-  if (!cedula) {
-    return { valid: false, message: 'La cédula es obligatoria' }
+  if (!identification) {
+    return { valid: false, message: 'La identificación es obligatoria' }
   }
 
-  if (!/^\d+$/.test(cedula)) {
-    return { valid: false, message: 'La cédula debe contener solo dígitos numéricos' }
+  if (!/^\d+$/.test(identification)) {
+    return { valid: false, message: 'La identificación debe contener solo dígitos numéricos' }
   }
 
-  if (cedula.length !== ESTUDIANTE_VINCULACION_CONSTRAINTS.identification.length) {
-    return { valid: false, message: 'La cédula debe tener exactamente 10 dígitos' }
-  }
-
-  // Algoritmo de validación de cédula ecuatoriana (Módulo 10)
-  const provincia = parseInt(cedula.substring(0, 2), 10)
-  if (provincia < 1 || provincia > 24) {
-    return { valid: false, message: 'Código de provincia inválido en la cédula' }
-  }
-
-  const tercerDigito = parseInt(cedula[2], 10)
-  if (tercerDigito >= 6) {
-    return { valid: false, message: 'Cédula inválida' }
-  }
-
-  // Pesos correspondientes a cada posición
-  const coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2]
-  let suma = 0
-  for (let i = 0; i < 9; i++) {
-    let valor = parseInt(cedula[i], 10) * coeficientes[i]
-    if (valor >= 10) {
-      valor -= 9
+  const { minLength, maxLength } = ESTUDIANTE_VINCULACION_CONSTRAINTS.identification
+  if (identification.length < minLength || identification.length > maxLength) {
+    return { 
+      valid: false, 
+      message: `La identificación debe tener entre ${minLength} y ${maxLength} dígitos` 
     }
-    suma += valor
-  }
-
-  const total = (suma % 10) === 0 ? 0 : (10 - (suma % 10))
-  const verificador = parseInt(cedula[9], 10)
-
-  if (total !== verificador) {
-    return { valid: false, message: 'La cédula no es válida' }
   }
 
   return { valid: true }
@@ -393,20 +370,22 @@ export const validateEstudianteVinculacion = (data, isEdit = false) => {
  * Mensajes de error amigables específicos para estudiante de vinculación
  */
 export const ESTUDIANTE_FRIENDLY_MESSAGES = {
-  'La cédula es requerida': 'Por favor, ingresa la cédula del estudiante',
-  'La cédula no es válida': 'La cédula ingresada no es válida. Por favor, verifícala',
+  'La identificación es requerida': 'Por favor, ingresa la identificación del estudiante',
+  'La cédula es requerida': 'Por favor, ingresa la identificación del estudiante',
+  'La identificación no es válida': 'La identificación ingresada no es válida. Por favor, verifícala',
+  'La cédula no es válida': 'La identificación ingresada no es válida. Por favor, verifícala',
   'El nombre es requerido': 'Por favor, ingresa el nombre del estudiante',
   'El apellido es requerido': 'Por favor, ingresa el apellido del estudiante',
   'El email es obligatorio': 'Por favor, ingresa el correo institucional',
   'La contraseña es obligatoria': 'Por favor, ingresa una contraseña',
   'La carrera es obligatoria': 'Por favor, ingresa la carrera del estudiante',
   'El semestre es obligatorio': 'Por favor, selecciona el semestre',
-  'Ya existe un estudiante de vinculación registrado con esta cédula': 'Ya existe un estudiante registrado con esta cédula',
-  'ya existe un estudiante': 'Ya existe un estudiante registrado con esta cédula',
-  'registrado con esta cédula': 'Ya existe un estudiante registrado con esta cédula',
+  'Ya existe un estudiante de vinculación registrado con esta cédula': 'Ya existe un estudiante registrado con esta identificación',
+  'ya existe un estudiante': 'Ya existe un estudiante registrado con esta identificación',
+  'registrado con esta cédula': 'Ya existe un estudiante registrado con esta identificación',
   'Ya existe': 'Ya existe un estudiante con esos datos',
-  'ya esta registrada': 'Esta cédula ya está registrada en el sistema',
-  'already registered': 'Esta cédula ya está registrada en el sistema',
+  'ya esta registrada': 'Esta identificación ya está registrada en el sistema',
+  'already registered': 'Esta identificación ya está registrada en el sistema',
   'no encontrado': 'No se encontró el estudiante',
 }
 
@@ -432,7 +411,7 @@ export const getEstudianteFriendlyMessage = (error) => {
  * Traduce los nombres de campos a español
  */
 export const FIELD_LABELS = {
-  identification: 'Cédula',
+  identification: 'Identificación',
   first_name: 'Nombre',
   last_name: 'Apellido',
   email: 'Correo electrónico',

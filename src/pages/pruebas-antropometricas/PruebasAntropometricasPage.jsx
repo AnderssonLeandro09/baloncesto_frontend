@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FiPlus, FiBarChart2, FiList, FiInfo } from 'react-icons/fi';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FiPlus, FiBarChart2, FiList, FiInfo, FiSearch, FiX } from 'react-icons/fi';
 import { Card, Button, Select, Pagination, Modal } from '../../components/common';
 import { usePruebasAntropometricas } from '../../hooks';
 import { PruebaAntropometricaTable, PruebaAntropometricaModal, PruebaAntropometricaCharts } from '../../components/pruebas-antropometricas';
@@ -20,6 +20,7 @@ const PruebasAntropometricasPage = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareTarget, setShareTarget] = useState(null);
   const [shareEmail, setShareEmail] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const {
     pruebas,
@@ -220,119 +221,59 @@ const PruebasAntropometricasPage = () => {
     setFiltros({ estado, page: 1 });
   };
 
-  const handleFechaInicioFilter = (value) => {
-    const fecha = value || undefined;
+  // Función auxiliar para obtener nombre del atleta
+  const getAtletaNombre = (prueba) => {
+    if (!prueba) return 'N/A';
     
-    if (fecha) {
-      // Si hay fecha fin, validar que fecha inicio no sea posterior
-      if (filtros.fecha_fin && new Date(fecha) > new Date(filtros.fecha_fin)) {
-        toast.error('La fecha de inicio no puede ser posterior a la fecha fin');
-        return;
-      }
-      
-      // Validar rango máximo de 30 días si hay fecha fin
-      if (filtros.fecha_fin) {
-        const diffTime = Math.abs(new Date(filtros.fecha_fin) - new Date(fecha));
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        if (diffDays > 30) {
-          toast.error('El rango de fechas no puede ser mayor a 30 días');
-          return;
-        }
-      }
-      
-      // Si no hay fecha fin, calcular y establecer fecha fin automática (30 días después o hoy)
-      if (!filtros.fecha_fin) {
-        const fechaInicio = new Date(fecha);
-        const fechaMaxFin = new Date(fechaInicio);
-        fechaMaxFin.setDate(fechaMaxFin.getDate() + 30);
-        
-        // No puede ser futura
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        const fechaFinCalculada = fechaMaxFin > hoy ? hoy : fechaMaxFin;
-        
-        setFiltros({ 
-          fecha_inicio: fecha, 
-          fecha_fin: fechaFinCalculada.toISOString().split('T')[0],
-          page: 1 
-        });
-        return;
-      }
+    // Verificar si tiene el objeto persona
+    if (prueba.persona) {
+      const nombre = prueba.persona.nombre || '';
+      const apellido = prueba.persona.apellido || '';
+      return `${nombre} ${apellido}`.trim() || 'N/A';
     }
     
-    setFiltros({ fecha_inicio: fecha, page: 1 });
+    // Fallbacks para otros formatos
+    if (prueba.atleta) {
+      if (prueba.atleta.nombres) {
+        return `${prueba.atleta.nombres} ${prueba.atleta.apellidos || ''}`.trim();
+      }
+      if (prueba.atleta.nombre_atleta) {
+        return `${prueba.atleta.nombre_atleta} ${prueba.atleta.apellido_atleta || ''}`.trim();
+      }
+      if (typeof prueba.atleta === 'string') return prueba.atleta;
+      return `Atleta #${prueba.atleta.id || 'N/A'}`;
+    }
+    
+    return 'N/A';
   };
 
-  const handleFechaFinFilter = (value) => {
-    const fecha = value || undefined;
-    
-    if (fecha) {
-      // Si hay fecha inicio, validar que fecha fin no sea anterior
-      if (filtros.fecha_inicio && new Date(fecha) < new Date(filtros.fecha_inicio)) {
-        toast.error('La fecha fin no puede ser anterior a la fecha de inicio');
-        return;
+  // Filtrado local basado en la búsqueda
+  const filteredPruebas = useMemo(() => {
+    // Si el término de búsqueda tiene menos de 3 caracteres, mostrar todos
+    if (searchTerm.length < 3) {
+      return pruebas;
+    }
+
+    const search = searchTerm.toLowerCase();
+    return pruebas.filter(prueba => {
+      try {
+        const atletaNombre = getAtletaNombre(prueba).toLowerCase();
+        const fecha = new Date(prueba.fecha_registro).toLocaleDateString('es-ES').toLowerCase();
+        const identificacion = (prueba.persona?.identificacion || '').toLowerCase();
+        
+        return atletaNombre.includes(search) || 
+               fecha.includes(search) || 
+               identificacion.includes(search);
+      } catch (error) {
+        console.error('Error filtrando prueba:', error, prueba);
+        return false;
       }
-      
-      // Validar rango máximo de 30 días
-      if (filtros.fecha_inicio) {
-        const diffTime = Math.abs(new Date(fecha) - new Date(filtros.fecha_inicio));
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        if (diffDays > 30) {
-          toast.error('El rango de fechas no puede ser mayor a 30 días');
-          return;
-        }
-      }
-    }
-    
-    setFiltros({ fecha_fin: fecha, page: 1 });
-  };
-  
-  // Calcular límites de fecha
-  const getFechaInicioMax = () => {
-    const hoy = new Date().toISOString().split('T')[0];
-    return hoy;
-  };
-  
-  const getFechaFinMin = () => {
-    if (filtros.fecha_inicio) {
-      return filtros.fecha_inicio;
-    }
-    return undefined;
-  };
-  
-  const getFechaFinMax = () => {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    
-    if (filtros.fecha_inicio) {
-      const fechaInicio = new Date(filtros.fecha_inicio);
-      const fecha30Dias = new Date(fechaInicio);
-      fecha30Dias.setDate(fecha30Dias.getDate() + 30);
-      
-      // Retornar el menor entre hoy y 30 días después
-      const fechaMax = fecha30Dias > hoy ? hoy : fecha30Dias;
-      return fechaMax.toISOString().split('T')[0];
-    }
-    
-    return hoy.toISOString().split('T')[0];
-  };
+    });
+  }, [pruebas, searchTerm]);
 
   const handlePageSizeChange = (e) => {
     const newPageSize = parseInt(e.target.value);
     setFiltros({ pageSize: newPageSize, page: 1 });
-  };
-
-  // Función auxiliar para obtener nombre del atleta en el modal de detalles
-  const getAtletaNombre = (prueba) => {
-    if (!prueba?.atleta) return 'N/A';
-    if (prueba.atleta.nombres) {
-      return `${prueba.atleta.nombres} ${prueba.atleta.apellidos || ''}`.trim();
-    }
-    if (prueba.atleta.nombre_atleta) {
-      return `${prueba.atleta.nombre_atleta} ${prueba.atleta.apellido_atleta || ''}`.trim();
-    }
-    if (typeof prueba.atleta === 'string') return prueba.atleta;
-    return `Atleta #${prueba.atleta.id || 'N/A'}`;
   };
 
   // Clasificación del IMC
@@ -377,17 +318,9 @@ const PruebasAntropometricasPage = () => {
       {viewMode === 'table' ? (
         <>
           <Card>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-              <div>
-                <Select
-                  label="Filtrar por Atleta"
-                  name="atletaFilter"
-                  value={filtros.atleta?.toString() || '0'}
-                  onChange={(e) => handleAtletaFilter(e.target.value)}
-                  options={atletas}
-                />
-              </div>
-              <div>
+            <div className="flex flex-col lg:flex-row gap-4 mb-4">
+              {/* Filtro de estado */}
+              <div className="w-full lg:w-64">
                 <Select
                   label="Filtrar por Estado"
                   name="estadoFilter"
@@ -400,48 +333,40 @@ const PruebasAntropometricasPage = () => {
                   ]}
                 />
               </div>
-              <div>
+              
+              {/* Barra de búsqueda */}
+              <div className="flex-1 min-w-[250px]">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha Inicio
+                  Buscar
                 </label>
-                <input
-                  type="date"
-                  value={filtros.fecha_inicio || ''}
-                  max={getFechaInicioMax()}
-                  onChange={(e) => handleFechaInicioFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha Fin (máx. 30 días)
-                </label>
-                <input
-                  type="date"
-                  value={filtros.fecha_fin || ''}
-                  min={getFechaFinMin()}
-                  max={getFechaFinMax()}
-                  disabled={!filtros.fecha_inicio}
-                  onChange={(e) => handleFechaFinFilter(e.target.value)}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                    !filtros.fecha_inicio ? 'bg-gray-100 cursor-not-allowed' : ''
-                  }`}
-                />
+                <div className="relative">
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar atleta o fecha (min. 3 caracteres)..."
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <FiX className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                {searchTerm && searchTerm.length < 3 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Ingrese al menos 3 caracteres para buscar
+                  </p>
+                )}
               </div>
             </div>
-            {filtros.fecha_inicio && (
-              <div className="text-sm text-gray-600 mb-4">
-                <span className="font-medium">💡 Consejo:</span> El rango seleccionado es de{' '}
-                {filtros.fecha_inicio && filtros.fecha_fin ? (
-                  <>
-                    {Math.ceil((new Date(filtros.fecha_fin) - new Date(filtros.fecha_inicio)) / (1000 * 60 * 60 * 24))} días
-                  </>
-                ) : '30 días (máximo)'}
-              </div>
-            )}
 
             <PruebaAntropometricaTable
-              data={pruebas}
+              data={filteredPruebas}
               loading={loading}
               onView={handleView}
               onEdit={handleEdit}
@@ -454,7 +379,8 @@ const PruebasAntropometricasPage = () => {
             <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center space-x-4">
                 <div className="text-sm text-gray-700">
-                  Mostrando {pruebas.length > 0 ? ((filtros.page - 1) * (filtros.pageSize || 10)) + 1 : 0} - {Math.min((filtros.page || 1) * (filtros.pageSize || 10), totalItems || 0)} de {totalItems || 0} resultados
+                  Mostrando {filteredPruebas.length > 0 ? ((filtros.page - 1) * (filtros.pageSize || 10)) + 1 : 0} - {Math.min((filtros.page || 1) * (filtros.pageSize || 10), filteredPruebas.length)} de {filteredPruebas.length} resultado(s)
+                  {searchTerm.length >= 3 && ` (filtrados de ${totalItems} totales)`}
                 </div>
                 <div className="flex items-center space-x-2">
                   <label className="text-sm font-medium text-gray-700">

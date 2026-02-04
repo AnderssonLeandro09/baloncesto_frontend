@@ -54,10 +54,10 @@ export const LIMITES = {
  */
 export const MENSAJES_ERROR = {
   // Errores de atleta
-  ATLETA_REQUERIDO: 'Debes seleccionar un atleta para registrar la prueba',
-  ATLETA_ID_INVALIDO: 'El atleta seleccionado no es válido',
-  ATLETA_NO_EXISTE: 'El atleta seleccionado no existe en el sistema',
-  ATLETA_SIN_INSCRIPCION: 'El atleta no tiene inscripción habilitada. No se puede registrar la prueba',
+  ATLETA_REQUERIDO: 'El atleta es requerido',
+  ATLETA_ID_INVALIDO: 'El ID del atleta no es válido',
+  ATLETA_NO_EXISTE: 'El atleta no existe',
+  ATLETA_SIN_INSCRIPCION: 'El atleta no tiene inscripción habilitada',
   
   // Errores de tipo de prueba
   TIPO_REQUERIDO: 'Debes seleccionar un tipo de prueba',
@@ -66,8 +66,8 @@ export const MENSAJES_ERROR = {
   // Errores de resultado
   RESULTADO_REQUERIDO: 'Debes ingresar el resultado de la prueba',
   RESULTADO_INVALIDO: 'El resultado debe ser un número válido',
-  RESULTADO_NEGATIVO: 'El resultado debe ser mayor a 0',
-  RESULTADO_EXCEDE_RANGO: (tipo, max) => `El resultado excede el máximo permitido para ${tipo}: ${max}`,
+  RESULTADO_NEGATIVO: 'No se permiten valores negativos o cero. El resultado debe ser mayor a 0',
+  RESULTADO_EXCEDE_RANGO: (tipo, max) => `El resultado excede el rango máximo permitido para ${tipo}: ${max}`,
   
   // Errores de observaciones
   OBSERVACIONES_EXCEDE: `Las observaciones no pueden exceder ${LIMITES.MAX_OBSERVACIONES} caracteres`,
@@ -76,18 +76,18 @@ export const MENSAJES_ERROR = {
   FECHA_FUTURA: 'La fecha de registro no puede ser futura',
   
   // Errores de permisos
-  SIN_PERMISO_CREAR: 'No tienes permiso para registrar pruebas físicas',
-  SIN_PERMISO_EDITAR: 'No tienes permiso para modificar esta prueba',
-  SIN_PERMISO_ATLETA: 'No tienes permiso para registrar pruebas a este atleta',
+  SIN_PERMISO_CREAR: 'No tiene permiso para realizar esta acción',
+  SIN_PERMISO_EDITAR: 'No tiene permiso para modificar esta prueba',
+  SIN_PERMISO_ATLETA: 'No tiene permiso para registrar pruebas a este atleta',
   
   // Errores de estado
   PRUEBA_INACTIVA: 'No se puede modificar una prueba inactiva',
-  PRUEBA_NO_ENCONTRADA: 'La prueba física no fue encontrada',
+  PRUEBA_NO_ENCONTRADA: 'Prueba física no encontrada',
   
   // Errores genéricos
-  ERROR_SERVIDOR: 'Ocurrió un error al procesar la solicitud. Por favor, intenta de nuevo',
+  ERROR_SERVIDOR: 'Error interno del servidor',
   ERROR_CONEXION: 'No se pudo conectar con el servidor. Verifica tu conexión a internet',
-  ERROR_VALIDACION: 'Los datos ingresados no son válidos. Por favor, revisa el formulario',
+  ERROR_VALIDACION: 'Datos de entrada inválidos',
 }
 
 /**
@@ -317,7 +317,7 @@ export const parsearErrorBackend = (error, statusCode) => {
 export const convertirMensajeAmigable = (mensaje, statusCode) => {
   // Mapeo de mensajes del backend a mensajes amigables
   const mapasMensajes = {
-    'El ID del atleta es requerido': MENSAJES_ERROR.ATLETA_REQUERIDO,
+    'El atleta es requerido': MENSAJES_ERROR.ATLETA_REQUERIDO,
     'El atleta con ID': MENSAJES_ERROR.ATLETA_NO_EXISTE,
     'El atleta no tiene inscripción habilitada': MENSAJES_ERROR.ATLETA_SIN_INSCRIPCION,
     'No tiene permiso para registrar pruebas a este atleta': MENSAJES_ERROR.SIN_PERMISO_ATLETA,
@@ -327,7 +327,6 @@ export const convertirMensajeAmigable = (mensaje, statusCode) => {
     'No se puede modificar una prueba inactiva': MENSAJES_ERROR.PRUEBA_INACTIVA,
     'La fecha de registro no puede ser futura': MENSAJES_ERROR.FECHA_FUTURA,
     'valores negativos o cero': MENSAJES_ERROR.RESULTADO_NEGATIVO,
-    'excede el rango máximo': 'El resultado supera el límite permitido para este tipo de prueba',
     'observaciones no pueden exceder': MENSAJES_ERROR.OBSERVACIONES_EXCEDE,
     'Error interno del servidor': MENSAJES_ERROR.ERROR_SERVIDOR,
     'Datos de entrada inválidos': MENSAJES_ERROR.ERROR_VALIDACION,

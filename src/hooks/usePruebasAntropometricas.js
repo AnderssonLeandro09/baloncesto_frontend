@@ -25,7 +25,7 @@ export const usePruebasAntropometricas = (autoFetch = true) => {
 
   useEffect(() => {
     memoizedFetchPruebas();
-  }, [memoizedFetchPruebas, filtros.page, filtros.pageSize, filtros.atleta, filtros.estado]);
+  }, [memoizedFetchPruebas, filtros.page, filtros.pageSize, filtros.atleta, filtros.estado, filtros.fecha_inicio, filtros.fecha_fin]);
 
   return {
     pruebas,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FiPlus, FiEdit2, FiTrash2, FiEye } from 'react-icons/fi'
+import { FiPlus, FiEdit2, FiEye, FiToggleLeft, FiToggleRight } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { Card, Button, ConfirmDialog } from '../../components/common'
 import { UsuariosTable, UsuarioDetalleModal } from '../../components/usuarios'
@@ -13,7 +13,8 @@ const EntrenadoresList = () => {
     loading, 
     fetchEntrenadores, 
     deleteEntrenador,
-    setEntrenadorSeleccionado 
+    setEntrenadorSeleccionado,
+    entrenadorSeleccionado
   } = useEntrenadorStore()
   
   const deleteModal = useModal()
@@ -50,10 +51,11 @@ const EntrenadoresList = () => {
     if (entrenadorSeleccionado) {
       const result = await deleteEntrenador(entrenadorSeleccionado.entrenador.id)
       if (result.success) {
-        toast.success('Entrenador dado de baja exitosamente')
+        const wasInactive = result.data?.entrenador?.eliminado
+        toast.success(wasInactive ? 'Entrenador desactivado exitosamente' : 'Entrenador activado exitosamente')
         deleteModal.close()
       } else {
-        toast.error(result.error || 'Error al dar de baja al entrenador')
+        toast.error(result.error || 'Error al actualizar el estado del entrenador')
       }
     }
   }
@@ -86,6 +88,17 @@ const EntrenadoresList = () => {
       render: (_, row) => row.entrenador?.club_asignado || 'N/A'
     },
     {
+      key: 'estado',
+      title: 'Estado',
+      render: (_, row) => (
+        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+          row.entrenador?.eliminado ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+        }`}>
+          {row.entrenador?.eliminado ? 'Desactivado' : 'Activo'}
+        </span>
+      )
+    },
+    {
       key: 'actions',
       title: 'Acciones',
       render: (_, row) => (
@@ -106,10 +119,14 @@ const EntrenadoresList = () => {
           </button>
           <button 
             onClick={() => handleDeleteClick(row)}
-            className="p-1 text-red-600 hover:bg-red-50 rounded"
-            title="Dar de baja"
+            className={`p-1 rounded ${row.entrenador?.eliminado ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
+            title={row.entrenador?.eliminado ? 'Activar' : 'Desactivar'}
           >
-            <FiTrash2 className="w-4 h-4" />
+            {row.entrenador?.eliminado ? (
+              <FiToggleLeft className="w-4 h-4" />
+            ) : (
+              <FiToggleRight className="w-4 h-4" />
+            )}
           </button>
         </div>
       ),
@@ -164,8 +181,10 @@ const EntrenadoresList = () => {
         isOpen={deleteModal.isOpen}
         onClose={deleteModal.close}
         onConfirm={handleConfirmDelete}
-        title="Dar de baja entrenador"
-        message="¿Está seguro que desea dar de baja a este entrenador? Esta acción no se puede deshacer."
+        title={entrenadorSeleccionado?.entrenador?.eliminado ? 'Activar entrenador' : 'Desactivar entrenador'}
+        message={entrenadorSeleccionado?.entrenador?.eliminado
+          ? '¿Está seguro que desea activar a este entrenador?'
+          : '¿Está seguro que desea desactivar a este entrenador? Podrá reactivarlo más adelante.'}
         variant="danger"
         isLoading={loading}
       />

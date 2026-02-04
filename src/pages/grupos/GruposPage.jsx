@@ -7,6 +7,7 @@ import { Card, Button, Modal, Loading, ConfirmDialog } from '../../components/co
 import { GrupoCard, GrupoForm, GrupoDetailModal } from '../../components/grupos'
 import useGrupoStore from '../../stores/grupoStore'
 import { toast } from 'react-hot-toast'
+import { getFriendlyErrorMessage } from '../../utils/grupoAtletaValidators'
 
 const GruposPage = () => {
   const {
@@ -16,35 +17,42 @@ const GruposPage = () => {
     fetchGrupos,
     createGrupo,
     updateGrupo,
-    deleteGrupo,
+    toggleEstado,
     setGrupoSeleccionado,
     grupoSeleccionado,
     clearGrupoSeleccionado,
+    clearErrors,
   } = useGrupoStore()
 
   const [showModal, setShowModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [grupoToDelete, setGrupoToDelete] = useState(null)
+  const [showStatusDialog, setShowStatusDialog] = useState(false)
+  const [grupoToToggle, setGrupoToToggle] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [serverErrors, setServerErrors] = useState(null)
 
   useEffect(() => {
     fetchGrupos()
   }, [fetchGrupos])
 
   useEffect(() => {
-    if (error) {
-      toast.error(error)
+    if (error && !showModal) {
+      // Solo mostrar toast si no estamos en el modal (donde se muestran los errores inline)
+      toast.error(getFriendlyErrorMessage(error))
     }
-  }, [error])
+  }, [error, showModal])
 
   const handleCreate = () => {
     clearGrupoSeleccionado()
+    clearErrors()
+    setServerErrors(null)
     setShowModal(true)
   }
 
   const handleEdit = (grupo) => {
     setGrupoSeleccionado(grupo)
+    clearErrors()
+    setServerErrors(null)
     setShowModal(true)
   }
 
@@ -53,44 +61,61 @@ const GruposPage = () => {
     setShowDetailModal(true)
   }
 
-  const handleDelete = (grupo) => {
-    setGrupoToDelete(grupo)
-    setShowDeleteDialog(true)
+  const handleToggleStatus = (grupo) => {
+    setGrupoToToggle(grupo)
+    setShowStatusDialog(true)
   }
 
-  const confirmDelete = async () => {
-    if (grupoToDelete) {
-      const result = await deleteGrupo(grupoToDelete.id)
-      if (result.success) {
-        toast.success('Grupo eliminado exitosamente')
-        setShowDeleteDialog(false)
-        setGrupoToDelete(null)
-      } else {
-        toast.error(result.error || 'Error al eliminar el grupo')
-      }
+  const confirmToggleStatus = async () => {
+    if (!grupoToToggle) return
+    const result = await toggleEstado(grupoToToggle.id)
+    if (result.success) {
+      toast.success(result.message)
+      setShowStatusDialog(false)
+      setGrupoToToggle(null)
+    } else {
+      toast.error(result.error || 'Error al cambiar el estado')
     }
   }
 
+  const handleCloseModal = () => {
+    setShowModal(false)
+    clearGrupoSeleccionado()
+    clearErrors()
+    setServerErrors(null)
+  }
+
   const handleSubmit = async (data) => {
+    setServerErrors(null)
     let result
+    
     if (grupoSeleccionado) {
       result = await updateGrupo(grupoSeleccionado.id, data)
       if (result.success) {
-        toast.success('Grupo actualizado exitosamente')
-        setShowModal(false)
-        clearGrupoSeleccionado()
+        toast.success(result.message || '¡Excelente! El grupo ha sido actualizado')
+        handleCloseModal()
         fetchGrupos()
       } else {
-        toast.error(result.error || 'Error al actualizar el grupo')
+        // Mostrar errores de validación en el formulario
+        if (result.errors) {
+          setServerErrors(result.errors)
+        }
+        // Mostrar toast con mensaje amigable
+        toast.error(getFriendlyErrorMessage(result.message))
       }
     } else {
       result = await createGrupo(data)
       if (result.success) {
-        toast.success('Grupo creado exitosamente')
-        setShowModal(false)
+        toast.success(result.message || '¡Excelente! El grupo ha sido creado')
+        handleCloseModal()
         fetchGrupos()
       } else {
-        toast.error(result.error || 'Error al crear el grupo')
+        // Mostrar errores de validación en el formulario
+        if (result.errors) {
+          setServerErrors(result.errors)
+        }
+        // Mostrar toast con mensaje amigable
+        toast.error(getFriendlyErrorMessage(result.message))
       }
     }
   }
@@ -225,7 +250,7 @@ const GruposPage = () => {
               key={grupo.id}
               grupo={grupo}
               onEdit={handleEdit}
-              onDelete={handleDelete}
+              onToggleStatus={handleToggleStatus}
               onView={handleView}
             />
           ))}
@@ -235,7 +260,7 @@ const GruposPage = () => {
       {/* Modal de Formulario */}
       <Modal 
         isOpen={showModal} 
-        onClose={() => setShowModal(false)}
+        onClose={handleCloseModal}
         className="bg-blue-500"
         title={grupoSeleccionado ? 'Editar Grupo' : 'Nuevo Grupo de Atletas'}
         size="xl"
@@ -243,11 +268,9 @@ const GruposPage = () => {
         <GrupoForm
           grupo={grupoSeleccionado}
           onSubmit={handleSubmit}
-          onCancel={() => {
-            setShowModal(false)
-            clearGrupoSeleccionado()
-          }}
+          onCancel={handleCloseModal}
           loading={loading}
+          serverErrors={serverErrors}
         />
       </Modal>
 
@@ -262,15 +285,18 @@ const GruposPage = () => {
         />
       )}
 
-      {/* Dialog de Confirmación */}
+      {/* Diálogo de confirmación para cambio de estado */}
       <ConfirmDialog
-        isOpen={showDeleteDialog}
-        onClose={() => setShowDeleteDialog(false)}
-        onConfirm={confirmDelete}
-        title="Eliminar Grupo"
-        message={`¿Estás seguro de que deseas eliminar el grupo "${grupoToDelete?.nombre}"? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar"
-        confirmVariant="danger"
+        isOpen={showStatusDialog}
+        onClose={() => {
+          setShowStatusDialog(false)
+          setGrupoToToggle(null)
+        }}
+        onConfirm={confirmToggleStatus}
+        title={!grupoToToggle?.eliminado ? 'Deshabilitar Grupo' : 'Habilitar Grupo'}
+        message={`¿Estás seguro de que deseas ${!grupoToToggle?.eliminado ? 'deshabilitar' : 'habilitar'} el grupo "${grupoToToggle?.nombre}"?`}
+        confirmText={!grupoToToggle?.eliminado ? 'Deshabilitar' : 'Habilitar'}
+        confirmVariant={!grupoToToggle?.eliminado ? 'danger' : 'success'}
       />
     </div>
   )

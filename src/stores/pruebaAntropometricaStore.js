@@ -3,6 +3,7 @@
  */
 import { create } from 'zustand'
 import { PruebaAntropometricaService } from '../api'
+import { resolveBackendError } from '../config/errorMessages'
 
 const usePruebaAntropometricaStore = create((set, get) => ({
   // Estado
@@ -10,7 +11,15 @@ const usePruebaAntropometricaStore = create((set, get) => ({
   pruebaSeleccionada: null,
   loading: false,
   error: null,
-  filtros: { search: '', page: 1, pageSize: 10 },
+  filtros: { 
+    search: '', 
+    page: 1, 
+    pageSize: 10,
+    atleta: undefined,
+    estado: undefined,
+    fecha_inicio: undefined,
+    fecha_fin: undefined
+  },
   totalItems: 0,
 
   // Acciones
@@ -33,7 +42,7 @@ const usePruebaAntropometricaStore = create((set, get) => ({
         loading: false 
       })
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: resolveBackendError(error), loading: false })
     }
   },
 
@@ -47,7 +56,7 @@ const usePruebaAntropometricaStore = create((set, get) => ({
       }))
       return { success: true, data: response }
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: resolveBackendError(error), loading: false })
       throw error
     }
   },
@@ -63,7 +72,7 @@ const usePruebaAntropometricaStore = create((set, get) => ({
       }))
       return { success: true, data: response }
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: resolveBackendError(error), loading: false })
       throw error
     }
   },
@@ -78,7 +87,7 @@ const usePruebaAntropometricaStore = create((set, get) => ({
       }))
       return { success: true }
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: resolveBackendError(error), loading: false })
       throw error
     }
   },
@@ -93,7 +102,7 @@ const usePruebaAntropometricaStore = create((set, get) => ({
       }))
       return { success: true, data: response }
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: resolveBackendError(error), loading: false })
       throw error
     }
   },
@@ -116,7 +125,7 @@ const usePruebaAntropometricaStore = create((set, get) => ({
       set({ loading: false })
       return { success: true, data: response }
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: resolveBackendError(error), loading: false })
       throw error
     }
   },

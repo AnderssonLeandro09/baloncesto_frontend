@@ -21,12 +21,14 @@ const UsuariosTable = ({
 
   // Función de búsqueda
   const filteredData = useMemo(() => {
-    if (!searchTerm.trim()) return data
+    const trimmed = searchTerm.trim()
+    if (!trimmed) return data
+    if (trimmed.length < 3) return data
 
     return data.filter(row => {
       return searchFields.some(field => {
         const value = field.split('.').reduce((obj, key) => obj?.[key], row)
-        return value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
+        return value?.toString().toLowerCase().includes(trimmed.toLowerCase())
       })
     })
   }, [data, searchTerm, searchFields])

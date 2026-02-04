@@ -2,20 +2,46 @@
  * Tab de atletas seleccionados
  */
 
-import { FiX, FiUsers } from 'react-icons/fi'
+import { FiX, FiUsers, FiAlertCircle } from 'react-icons/fi'
+import { GRUPO_ATLETA_CONSTRAINTS } from '../../utils/grupoAtletaValidators'
 
-export const GrupoSelectedTab = ({ atletasSeleccionadosInfo, toggleAtleta }) => {
+export const GrupoSelectedTab = ({ atletasSeleccionadosInfo, toggleAtleta, error }) => {
+  const isOverLimit = atletasSeleccionadosInfo.length > GRUPO_ATLETA_CONSTRAINTS.atletas.maxCount
+
   return (
     <div className="space-y-4">
+      {/* Mensaje de error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          <p className="text-sm text-red-600 flex items-center">
+            <FiAlertCircle className="w-4 h-4 mr-2" />
+            {Array.isArray(error) ? error.join(', ') : error}
+          </p>
+        </div>
+      )}
+
       {/* Contador de seleccionados */}
-      <div className="flex items-center justify-between bg-blue-50 p-3 rounded-lg">
-        <div className="flex items-center space-x-2 text-blue-700">
+      <div className={`flex items-center justify-between p-3 rounded-lg ${isOverLimit ? 'bg-red-50' : 'bg-blue-50'}`}>
+        <div className={`flex items-center space-x-2 ${isOverLimit ? 'text-red-700' : 'text-blue-700'}`}>
           <FiUsers size={20} />
           <span className="font-semibold">
             {atletasSeleccionadosInfo.length} {atletasSeleccionadosInfo.length === 1 ? 'atleta seleccionado' : 'atletas seleccionados'}
           </span>
         </div>
+        <span className={`text-sm ${isOverLimit ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+          Máximo: {GRUPO_ATLETA_CONSTRAINTS.atletas.maxCount}
+        </span>
       </div>
+
+      {/* Advertencia si excede el límite */}
+      {isOverLimit && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          <p className="text-sm text-red-600 flex items-center">
+            <FiAlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+            Has seleccionado demasiados atletas. Por favor, elimina {atletasSeleccionadosInfo.length - GRUPO_ATLETA_CONSTRAINTS.atletas.maxCount} atleta(s) para poder guardar el grupo.
+          </p>
+        </div>
+      )}
 
       {/* Lista de atletas seleccionados */}
       <div className="border border-gray-200 rounded-lg overflow-hidden">

@@ -1,5 +1,5 @@
 import React from 'react'
-import { FiEdit2, FiEye, FiCheck, FiToggleLeft, FiToggleRight } from 'react-icons/fi'
+import { FiEdit2, FiEye, FiCheck } from 'react-icons/fi'
 import { Table } from '../common'
 
 // Función para sanitizar texto y prevenir XSS en renderizado
@@ -124,11 +124,11 @@ const PruebasFisicasList = ({ pruebas, loading, onEdit, onViewDetail, onToggleEs
       key: 'actions',
       title: 'Acciones',
       render: (_, row) => (
-        <div className="flex space-x-1">
+        <div className="flex space-x-2">
           {onViewDetail && (
             <button
               onClick={() => onViewDetail(row)}
-              className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+              className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
               title="Ver detalle"
             >
               <FiEye className="w-4 h-4" />
@@ -136,22 +136,31 @@ const PruebasFisicasList = ({ pruebas, loading, onEdit, onViewDetail, onToggleEs
           )}
           <button
             onClick={() => onEdit(row)}
-            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-            title="Editar"
+            className={`p-1 rounded transition-colors ${
+              row.estado 
+                ? 'text-blue-600 hover:bg-blue-50' 
+                : 'text-gray-300 cursor-not-allowed'
+            }`}
+            title={row.estado ? 'Editar' : 'No se puede editar una prueba inactiva'}
+            disabled={!row.estado}
           >
             <FiEdit2 className="w-4 h-4" />
           </button>
           {onToggleEstado && (
             <button
               onClick={() => onToggleEstado(row)}
-              className={`p-1.5 rounded transition-colors ${
+              title={row.estado ? 'Desactivar' : 'Activar'}
+              className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                 row.estado 
-                  ? 'text-amber-600 hover:bg-amber-50' 
-                  : 'text-green-600 hover:bg-green-50'
+                  ? 'bg-green-500 focus:ring-green-500' 
+                  : 'bg-gray-300 focus:ring-gray-400'
               }`}
-              title={row.estado ? 'Deshabilitar' : 'Habilitar'}
             >
-              {row.estado ? <FiToggleRight className="w-4 h-4" /> : <FiToggleLeft className="w-4 h-4" />}
+              <span
+                className={`inline-block w-4 h-4 transform transition-transform bg-white rounded-full shadow-md ${
+                  row.estado ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
             </button>
           )}
         </div>

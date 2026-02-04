@@ -30,8 +30,16 @@ const EntrenadorService = {
    * @param {Object} data - Datos del entrenador
    */
   create: async (data) => {
-    const response = await apiClient.post(ENDPOINTS.ENTRENADORES, data)
-    return response.data
+    try {
+      const response = await apiClient.post(ENDPOINTS.ENTRENADORES, data)
+      return response.data
+    } catch (error) {
+      console.error('Error creating entrenador:')
+      console.error('Status:', error.response?.status)
+      console.error('Data:', error.response?.data)
+      console.error('Message:', error.message)
+      throw error
+    }
   },
 
   /**
@@ -50,6 +58,15 @@ const EntrenadorService = {
    */
   delete: async (id) => {
     const response = await apiClient.delete(`${ENDPOINTS.ENTRENADORES}${id}/`)
+    return response.data
+  },
+
+  /**
+   * Cambiar estado de un entrenador (activar/desactivar)
+   * @param {number} id - ID del entrenador
+   */
+  toggleEstado: async (id) => {
+    const response = await apiClient.patch(`${ENDPOINTS.ENTRENADORES}${id}/toggle-estado/`)
     return response.data
   },
 

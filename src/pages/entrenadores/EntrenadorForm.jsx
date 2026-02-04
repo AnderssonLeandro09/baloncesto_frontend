@@ -195,9 +195,11 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
       type_stament: 'ESTUDIANTES'
     }
 
-    // Solo incluir identification, email y password en modo creación
+    // Incluir identification siempre (necesario para el backend)
+    personaData.identification = formValues.identification.trim()
+
+    // Solo incluir email y password en modo creación
     if (!isEdit) {
-      personaData.identification = formValues.identification.trim()
       personaData.email = formValues.email.trim() // NO cambiar a minúsculas
       personaData.password = formValues.password // NO cambiar contraseña
     }

@@ -58,7 +58,9 @@ const useEntrenadorStore = create((set, get) => ({
     try {
       const response = await EntrenadorService.update(id, data)
       set((state) => ({
-        entrenadores: state.entrenadores.map(e => e.entrenador.id === parseInt(id) ? response : e),
+        entrenadores: state.entrenadores.map(e => 
+          e.entrenador?.id === parseInt(id) ? response : e
+        ),
         entrenadorSeleccionado: null,
         loading: false
       }))
@@ -73,12 +75,12 @@ const useEntrenadorStore = create((set, get) => ({
   deleteEntrenador: async (id) => {
     set({ loading: true, error: null })
     try {
-      await EntrenadorService.delete(id)
+      const response = await EntrenadorService.toggleEstado(id)
       set((state) => ({
-        entrenadores: state.entrenadores.filter(e => e.entrenador.id !== parseInt(id)),
+        entrenadores: state.entrenadores.map(e => e.entrenador.id === parseInt(id) ? response : e),
         loading: false
       }))
-      return { success: true }
+      return { success: true, data: response }
     } catch (error) {
       const message = resolveBackendError(error)
       set({ error: message, loading: false })

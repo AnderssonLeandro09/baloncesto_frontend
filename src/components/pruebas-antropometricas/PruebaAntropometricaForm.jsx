@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Input, Button } from '../common';
+import { FiSearch, FiUser, FiX } from 'react-icons/fi';
 import apiClient from '../../api/apiClient';
 import PruebaAntropometricaService from '../../api/pruebaAntropometricaService';
 import {
@@ -148,6 +149,9 @@ const PruebaAntropometricaForm = ({
 }) => {
   const [atletas, setAtletas] = useState([]);
   const [loadingAtletas, setLoadingAtletas] = useState(true);
+  const [atletaSearch, setAtletaSearch] = useState('');
+  const [selectedAtletaData, setSelectedAtletaData] = useState(null);
+  const [showAtletasList, setShowAtletasList] = useState(false);
   
   // Determinar si es edición
   const isEditing = !!initialData?.id;
@@ -251,9 +255,12 @@ const PruebaAntropometricaForm = ({
           const persona = atleta.persona || {};
           const nombre = persona.nombre || '';
           const apellido = persona.apellido || '';
+          const identificacion = persona.identificacion || '';
           return {
             value: atleta.id,
             label: `${nombre} ${apellido}`.trim() || `Atleta ${atleta.id}`,
+            fullLabel: `${nombre} ${apellido}${identificacion ? ` (${identificacion})` : ''}`.trim(),
+            identificacion: identificacion,
           };
         });
         
@@ -266,7 +273,6 @@ const PruebaAntropometricaForm = ({
       }
     };
 
-    fetchAtletas();
     fetchAtletas();
   }, []);
 
@@ -282,8 +288,45 @@ const PruebaAntropometricaForm = ({
         envergadura: initialData.envergadura || '',
         observaciones: initialData.observaciones || '',
       });
+
+      // Si es edición, establecer el atleta seleccionado
+      if (isEditing && initialData.atleta) {
+        const atletaExistente = atletas.find(a => a.value === (initialData.atleta?.id || initialData.atleta));
+        if (atletaExistente) {
+          setSelectedAtletaData(atletaExistente);
+          setAtletaSearch(atletaExistente.fullLabel);
+        }
+      }
     }
-  }, [initialData, reset]);
+  }, [initialData, reset, atletas, isEditing]);
+
+  // Filtrar atletas según búsqueda (mínimo 3 caracteres)
+  const atletasFiltrados = (() => {
+    if (atletaSearch.trim().length < 3) return [];
+    const searchLower = atletaSearch.toLowerCase();
+    return atletas.filter(a => 
+      a.label.toLowerCase().includes(searchLower) ||
+      a.identificacion.toLowerCase().includes(searchLower) ||
+      a.fullLabel.toLowerCase().includes(searchLower)
+    ).slice(0, 10);
+  })();
+
+  // Manejar selección de atleta
+  const handleSelectAtleta = (atleta) => {
+    setSelectedAtletaData(atleta);
+    setAtletaSearch(atleta.fullLabel);
+    setShowAtletasList(false);
+    // Actualizar el valor del form
+    setValue('atleta', atleta.value, { shouldValidate: true });
+  };
+
+  // Limpiar selección de atleta
+  const handleClearAtleta = () => {
+    setSelectedAtletaData(null);
+    setAtletaSearch('');
+    setShowAtletasList(false);
+    setValue('atleta', '', { shouldValidate: true });
+  };
 
   const onFormSubmit = async (data) => {
     // Si es edición, no enviar atleta ni fecha_registro
@@ -299,35 +342,97 @@ const PruebaAntropometricaForm = ({
     <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Atleta <span className="text-red-500">*</span>
             {isEditing && <span className="text-gray-500 text-xs ml-1">(No editable)</span>}
           </label>
+          
           {isEditing && initialData?.atleta ? (
-            <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
-              <p className="font-medium">
-                {initialData.atleta.nombres || initialData.atleta.persona?.first_name || ''} {initialData.atleta.apellidos || initialData.atleta.persona?.last_name || ''}
-              </p>
-              <input type="hidden" {...register('atleta')} />
+            // Modo edición - mostrar atleta sin opción de cambiar
+            <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                <FiUser className="w-5 h-5 text-gray-600" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-800">{selectedAtletaData?.fullLabel || 'Cargando...'}</p>
+              </div>
+            </div>
+          ) : selectedAtletaData ? (
+            // Atleta seleccionado
+            <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <FiUser className="w-5 h-5 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-green-800">{selectedAtletaData.fullLabel}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearAtleta}
+                className="text-green-600 hover:text-green-800 text-sm font-medium"
+              >
+                Cambiar
+              </button>
             </div>
           ) : (
-            <select
-              {...register('atleta', { 
-                setValueAs: (v) => v === '' ? '' : Number(v) 
-              })}
-              disabled={loadingAtletas}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                errors.atleta ? 'border-red-500' : 'border-gray-300'
-              } ${loadingAtletas ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-            >
-              <option value="">{loadingAtletas ? 'Cargando atletas...' : 'Seleccione un atleta'}</option>
-              {atletas.map((atleta) => (
-                <option key={atleta.value} value={atleta.value}>
-                  {atleta.label}
-                </option>
-              ))}
-            </select>
+            // Buscador
+            <div className="relative">
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  value={atletaSearch}
+                  onChange={(e) => {
+                    setAtletaSearch(e.target.value);
+                    setShowAtletasList(true);
+                  }}
+                  onFocus={() => setShowAtletasList(true)}
+                  placeholder={loadingAtletas ? "Cargando atletas..." : "Buscar atleta por nombre o cédula (min. 3 caracteres)..."}
+                  className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                    errors.atleta ? 'border-red-500' : 'border-gray-300'
+                  } ${loadingAtletas ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  disabled={loadingAtletas}
+                />
+              </div>
+              
+              {/* Lista de resultados */}
+              {showAtletasList && atletaSearch.length >= 3 && atletasFiltrados.length > 0 && (
+                <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {atletasFiltrados.map((atleta) => (
+                    <button
+                      key={atleta.value}
+                      type="button"
+                      onClick={() => handleSelectAtleta(atleta)}
+                      className="w-full px-4 py-3 text-left hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <FiUser className="w-4 h-4 text-gray-500" />
+                      </div>
+                      <span className="text-gray-700">{atleta.fullLabel}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Sin resultados */}
+              {showAtletasList && atletaSearch.length >= 3 && atletasFiltrados.length === 0 && (
+                <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+                  <p className="text-sm text-gray-500 text-center">
+                    No se encontraron atletas
+                  </p>
+                </div>
+              )}
+
+              {/* Mensaje de caracteres mínimos */}
+              {atletaSearch && atletaSearch.length < 3 && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Ingrese al menos 3 caracteres para buscar
+                </p>
+              )}
+            </div>
           )}
+          
+          <input type="hidden" {...register('atleta')} />
           {errors.atleta && (
             <p className="mt-1 text-sm text-red-500">{errors.atleta.message}</p>
           )}

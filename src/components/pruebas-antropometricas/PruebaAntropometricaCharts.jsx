@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, ComposedChart, Area } from 'recharts';
-import { Select, Card } from '../common';
+import { Card } from '../common';
+import { FiSearch, FiX } from 'react-icons/fi';
 import usePruebaAntropometricaStore from '../../stores/pruebaAntropometricaStore';
 import apiClient from '../../api/apiClient';
 import { clasificarIMC, clasificarIndiceCormico } from '../../utils/validacionesAntropometricas';
@@ -10,6 +11,7 @@ const PruebaAntropometricaCharts = () => {
   const [atletas, setAtletas] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const { getPruebasByAtleta } = usePruebaAntropometricaStore();
 
@@ -93,6 +95,23 @@ const PruebaAntropometricaCharts = () => {
     fetchChartData();
   }, [fetchChartData]);
 
+  // Filtrar atletas según búsqueda
+  const filteredAtletas = useMemo(() => {
+    if (searchTerm.length < 3) {
+      return [];
+    }
+    const search = searchTerm.toLowerCase();
+    return atletas.filter(atleta => 
+      atleta.label.toLowerCase().includes(search)
+    );
+  }, [atletas, searchTerm]);
+
+  // Seleccionar atleta de la lista filtrada
+  const handleSelectAtleta = (atletaId) => {
+    setSelectedAtleta(atletaId);
+    setSearchTerm('');
+  };
+
   // Calcular estadísticas
   const estadisticas = chartData.length > 0 ? {
     pesoPromedio: (chartData.reduce((acc, d) => acc + d.peso, 0) / chartData.length).toFixed(2),
@@ -105,13 +124,79 @@ const PruebaAntropometricaCharts = () => {
     <div className="space-y-6">
       <Card>
         <div className="mb-6">
-          <Select
-            label="Seleccionar Atleta"
-            value={selectedAtleta || ''}
-            onChange={(e) => setSelectedAtleta(e.target.value ? Number(e.target.value) : null)}
-            options={[{ value: '', label: 'Seleccione un atleta' }, ...atletas]}
-            className="w-full md:w-96"
-          />
+          {/* Barra de búsqueda */}
+          <div className="relative max-w-md">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Buscar Atleta
+            </label>
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar atleta (min. 3 caracteres)..."
+                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedAtleta(null);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            
+            {/* Mensaje de ayuda */}
+            {searchTerm && searchTerm.length < 3 && (
+              <p className="text-xs text-gray-500 mt-1">
+                Ingrese al menos 3 caracteres para buscar
+              </p>
+            )}
+            
+            {/* Lista de resultados */}
+            {searchTerm.length >= 3 && filteredAtletas.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {filteredAtletas.map(atleta => (
+                  <button
+                    key={atleta.value}
+                    onClick={() => handleSelectAtleta(atleta.value)}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100 transition-colors text-sm"
+                  >
+                    {atleta.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {/* Sin resultados */}
+            {searchTerm.length >= 3 && filteredAtletas.length === 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                <p className="text-sm text-gray-500 text-center">
+                  No se encontraron atletas
+                </p>
+              </div>
+            )}
+          </div>
+          
+          {/* Atleta seleccionado */}
+          {selectedAtleta && (
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
+              <span className="font-medium">
+                Atleta: {atletas.find(a => a.value === selectedAtleta)?.label}
+              </span>
+              <button
+                onClick={() => setSelectedAtleta(null)}
+                className="hover:text-blue-900"
+              >
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -123,7 +208,7 @@ const PruebaAntropometricaCharts = () => {
           <div className="text-center py-12 text-gray-500">
             {selectedAtleta 
               ? 'No hay datos disponibles para este atleta' 
-              : 'Seleccione un atleta para ver sus gráficas'}
+              : 'Busque y seleccione un atleta para ver sus gráficas'}
           </div>
         ) : (
           <div className="space-y-8">

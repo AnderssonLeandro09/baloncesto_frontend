@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FiPlus, FiEdit2, FiEye } from 'react-icons/fi'
 import toast from 'react-hot-toast'
-import { Card, Button } from '../../components/common'
+import { Card, Button, ConfirmDialog } from '../../components/common'
 import { UsuariosTable, UsuarioDetalleModal } from '../../components/usuarios'
 import { useEstudianteVinculacionStore } from '../../stores'
 import { useModal } from '../../hooks'
@@ -21,6 +21,8 @@ const EstudiantesVinculacionList = () => {
   const detalleModal = useModal()
   const formModal = useModal()
   const [estudianteDetalle, setEstudianteDetalle] = useState(null)
+  const [showStatusDialog, setShowStatusDialog] = useState(false)
+  const [estudianteToToggle, setEstudianteToToggle] = useState(null)
   const [serverErrors, setServerErrors] = useState({})
 
   useEffect(() => {
@@ -57,10 +59,18 @@ const EstudiantesVinculacionList = () => {
     formModal.close()
   }
 
-  const handleToggleStatus = async (estudiante) => {
-    const result = await toggleEstado(estudiante.estudiante.id)
+  const handleToggleStatus = (estudiante) => {
+    setEstudianteToToggle(estudiante)
+    setShowStatusDialog(true)
+  }
+
+  const confirmToggleStatus = async () => {
+    if (!estudianteToToggle) return
+    const result = await toggleEstado(estudianteToToggle.estudiante.id)
     if (result.success) {
       toast.success(result.message)
+      setShowStatusDialog(false)
+      setEstudianteToToggle(null)
     } else {
       toast.error(result.error || 'Error al cambiar el estado')
     }
@@ -198,6 +208,20 @@ const EstudiantesVinculacionList = () => {
         onClose={detalleModal.close}
         usuario={estudianteDetalle}
         tipo="estudiante"
+      />
+
+      {/* Diálogo de confirmación para cambio de estado */}
+      <ConfirmDialog
+        isOpen={showStatusDialog}
+        onClose={() => {
+          setShowStatusDialog(false)
+          setEstudianteToToggle(null)
+        }}
+        onConfirm={confirmToggleStatus}
+        title={!estudianteToToggle?.estudiante?.eliminado ? 'Deshabilitar Estudiante' : 'Habilitar Estudiante'}
+        message={`¿Estás seguro de que deseas ${!estudianteToToggle?.estudiante?.eliminado ? 'deshabilitar' : 'habilitar'} al estudiante ${estudianteToToggle?.persona?.firts_name || estudianteToToggle?.persona?.first_name || ''} ${estudianteToToggle?.persona?.last_name || ''}?`}
+        confirmText={!estudianteToToggle?.estudiante?.eliminado ? 'Deshabilitar' : 'Habilitar'}
+        confirmVariant={!estudianteToToggle?.estudiante?.eliminado ? 'danger' : 'success'}
       />
     </div>
   )

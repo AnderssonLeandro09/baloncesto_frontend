@@ -3,7 +3,7 @@ import {
   FiPlus, FiSearch, FiRefreshCw, FiAlertCircle,
   FiUsers, FiTrendingUp, FiActivity
 } from 'react-icons/fi'
-import { Card, Button, Modal, Loading } from '../../components/common'
+import { Card, Button, Modal, Loading, ConfirmDialog } from '../../components/common'
 import { GrupoCard, GrupoForm, GrupoDetailModal } from '../../components/grupos'
 import useGrupoStore from '../../stores/grupoStore'
 import { toast } from 'react-hot-toast'
@@ -26,6 +26,8 @@ const GruposPage = () => {
 
   const [showModal, setShowModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showStatusDialog, setShowStatusDialog] = useState(false)
+  const [grupoToToggle, setGrupoToToggle] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [serverErrors, setServerErrors] = useState(null)
 
@@ -59,10 +61,18 @@ const GruposPage = () => {
     setShowDetailModal(true)
   }
 
-  const handleToggleStatus = async (grupo) => {
-    const result = await toggleEstado(grupo.id)
+  const handleToggleStatus = (grupo) => {
+    setGrupoToToggle(grupo)
+    setShowStatusDialog(true)
+  }
+
+  const confirmToggleStatus = async () => {
+    if (!grupoToToggle) return
+    const result = await toggleEstado(grupoToToggle.id)
     if (result.success) {
       toast.success(result.message)
+      setShowStatusDialog(false)
+      setGrupoToToggle(null)
     } else {
       toast.error(result.error || 'Error al cambiar el estado')
     }
@@ -274,6 +284,20 @@ const GruposPage = () => {
           }}
         />
       )}
+
+      {/* Diálogo de confirmación para cambio de estado */}
+      <ConfirmDialog
+        isOpen={showStatusDialog}
+        onClose={() => {
+          setShowStatusDialog(false)
+          setGrupoToToggle(null)
+        }}
+        onConfirm={confirmToggleStatus}
+        title={!grupoToToggle?.eliminado ? 'Deshabilitar Grupo' : 'Habilitar Grupo'}
+        message={`¿Estás seguro de que deseas ${!grupoToToggle?.eliminado ? 'deshabilitar' : 'habilitar'} el grupo "${grupoToToggle?.nombre}"?`}
+        confirmText={!grupoToToggle?.eliminado ? 'Deshabilitar' : 'Habilitar'}
+        confirmVariant={!grupoToToggle?.eliminado ? 'danger' : 'success'}
+      />
     </div>
   )
 }

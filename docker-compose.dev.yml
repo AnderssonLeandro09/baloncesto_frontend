@@ -1,0 +1,28 @@
+# ====================================
+# Docker Compose - Solo Frontend (Desarrollo)
+# Con hot reload habilitado
+# ====================================
+
+services:
+  # Frontend React (Desarrollo con hot reload)
+  frontend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: basketball_frontend_dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_API_VERSION=v1
+      - VITE_APP_NAME=Basketball Module
+      - VITE_DEBUG=true
+    networks:
+      - basketball_network
+
+networks:
+  basketball_network:
+    driver: bridge

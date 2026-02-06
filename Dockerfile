@@ -8,6 +8,15 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# Variables de entorno para el build (Vite las incrusta en build time)
+ARG VITE_API_URL=http://localhost:8000
+ARG VITE_API_VERSION=basketball
+ARG VITE_APP_NAME="Basketball Module"
+
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_API_VERSION=$VITE_API_VERSION
+ENV VITE_APP_NAME=$VITE_APP_NAME
+
 # Copiar archivos de dependencias
 COPY package*.json ./
 
@@ -29,7 +38,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copiar archivos construidos desde el stage anterior
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Exponer puerto
+# Exponer puerto 80
 EXPOSE 80
 
 # Comando por defecto

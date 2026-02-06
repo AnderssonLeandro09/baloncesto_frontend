@@ -39,7 +39,7 @@ const UsuariosTable = ({
     const startIndex = (currentPage - 1) * itemsPerPage
     const endIndex = startIndex + itemsPerPage
     return filteredData.slice(startIndex, endIndex)
-  ], [filteredData, currentPage, itemsPerPage])
+  }, [filteredData, currentPage, itemsPerPage])
 
   // Resetear a página 1 cuando cambia la búsqueda
   useEffect(() => {

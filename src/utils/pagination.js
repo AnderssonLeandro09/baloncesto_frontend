@@ -357,6 +357,7 @@ export const getNestedValue = (obj, path) => {
  *   )
  * }
  */
+// eslint-disable-next-line no-unused-vars
 export const usePaginatedData = (data = [], options = {}) => {
   // Este es un hook personalizado, pero como no podemos usar React hooks aquí
   // directamente, lo documentamos como patrón de uso

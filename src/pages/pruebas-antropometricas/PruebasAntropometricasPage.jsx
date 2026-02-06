@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FiPlus, FiBarChart2, FiList, FiInfo, FiSearch, FiX } from 'react-icons/fi';
 import { Card, Button, Select, Pagination, Modal } from '../../components/common';
 import { usePruebasAntropometricas } from '../../hooks';
@@ -17,6 +17,8 @@ const PruebasAntropometricasPage = () => {
   const [toggleTarget, setToggleTarget] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareTarget, setShareTarget] = useState(null);
+  // eslint-disable-next-line no-unused-vars
+  const [shareEmail, setShareEmail] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
   const {
@@ -180,8 +182,8 @@ const PruebasAntropometricasPage = () => {
     `);
     printWindow.document.close();
     printWindow.print();
-  };
-
+  };EstadoFilter = (value) => {
+    const estado = value === '' ? undefined : value === 'true'
   const handleAtletaFilter = (value) => {
     const atletaId = value === '0' ? undefined : parseInt(value);
     setFiltros({ estado, page: 1 });

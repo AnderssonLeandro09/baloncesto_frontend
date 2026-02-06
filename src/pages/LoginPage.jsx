@@ -12,10 +12,6 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" />
-  }
-
   const { values, errors, handleChange, setErrors } = useForm(
     { email: '', password: '' },
     (vals) => {
@@ -37,6 +33,10 @@ const LoginPage = () => {
       return errors
     }
   )
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" />
+  }
 
   const validate = () => {
     const newErrors = {}

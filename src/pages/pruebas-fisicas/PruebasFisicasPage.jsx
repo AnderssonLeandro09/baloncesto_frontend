@@ -422,7 +422,7 @@ const PruebasFisicasPage = () => {
           position: 'top-right',
         })
       }
-    } catch (err) {
+    } catch {
       toast.error('Ocurrió un error inesperado. Por favor, intenta de nuevo', { 
         duration: 4000, 
         position: 'top-right' 

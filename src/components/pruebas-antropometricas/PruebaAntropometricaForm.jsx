@@ -330,9 +330,9 @@ const PruebaAntropometricaForm = ({
   const onFormSubmit = async (data) => {
     // Si es edición, no enviar atleta ni fecha_registro
     if (isEditing) {
-      /* eslint-disable no-unused-vars */
-      const { atleta: _, fecha_registro: __, ...editData } = data;
-      /* eslint-enable no-unused-vars */
+      const editData = { ...data };
+      delete editData.atleta;
+      delete editData.fecha_registro;
       await onSubmit(editData);
     } else {
       await onSubmit(data);

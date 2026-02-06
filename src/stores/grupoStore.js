@@ -176,7 +176,7 @@ const useGrupoStore = create((set, get) => ({
           error: response.message || 'Error al cambiar el estado'
         }
       }
-    } catch (e) {
+    } catch {
       const errorMsg = 'Error al cambiar el estado del grupo'
       set({ error: errorMsg, loading: false })
       return { success: false, error: errorMsg }

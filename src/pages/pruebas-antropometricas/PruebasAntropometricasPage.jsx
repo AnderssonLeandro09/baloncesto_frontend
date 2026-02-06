@@ -182,10 +182,10 @@ const PruebasAntropometricasPage = () => {
     `);
     printWindow.document.close();
     printWindow.print();
-  };EstadoFilter = (value) => {
-    const estado = value === '' ? undefined : value === 'true'
-  const handleAtletaFilter = (value) => {
-    const atletaId = value === '0' ? undefined : parseInt(value);
+  };
+
+  const handleEstadoFilter = (value) => {
+    const estado = value === '' ? undefined : value === 'true';
     setFiltros({ estado, page: 1 });
   };
 

@@ -3,7 +3,7 @@
  * Con funcionalidad de búsqueda y paginación
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi'
 import { Loading } from '../common'
 

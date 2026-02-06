@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { FiPlus, FiBarChart2, FiList, FiInfo, FiSearch, FiX } from 'react-icons/fi';
 import { Card, Button, Select, Pagination, Modal } from '../../components/common';
 import { usePruebasAntropometricas } from '../../hooks';

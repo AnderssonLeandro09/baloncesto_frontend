@@ -129,8 +129,7 @@ const EntrenadorForm = ({ isOpen, onClose }) => {
     handleChange,
     handleBlur,
     handleSubmit,
-    setMultipleValues,
-    reset
+    setMultipleValues
   } = useForm(initialValues, validate)
 
   // Manejador personalizado para limpiar error de cédula cuando se modifica

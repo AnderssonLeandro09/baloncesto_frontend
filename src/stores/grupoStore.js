@@ -45,7 +45,7 @@ const useGrupoStore = create((set, get) => ({
           loading: false 
         })
       }
-    } catch (error) {
+    } catch {
       set({ error: 'Error de conexión al cargar los grupos', loading: false })
     }
   },
@@ -80,7 +80,7 @@ const useGrupoStore = create((set, get) => ({
           errors: fieldErrors
         }
       }
-    } catch (error) {
+    } catch {
       const errorMsg = 'Error de conexión al crear el grupo'
       set({ error: errorMsg, loading: false })
       return { success: false, message: errorMsg }
@@ -118,7 +118,7 @@ const useGrupoStore = create((set, get) => ({
           errors: fieldErrors
         }
       }
-    } catch (error) {
+    } catch {
       const errorMsg = 'Error de conexión al actualizar el grupo'
       set({ error: errorMsg, loading: false })
       return { success: false, message: errorMsg }
@@ -146,7 +146,7 @@ const useGrupoStore = create((set, get) => ({
           message: response.message || 'Error al eliminar el grupo'
         }
       }
-    } catch (error) {
+    } catch {
       const errorMsg = 'Error de conexión al eliminar el grupo'
       set({ error: errorMsg, loading: false })
       return { success: false, message: errorMsg }
@@ -176,7 +176,7 @@ const useGrupoStore = create((set, get) => ({
           error: response.message || 'Error al cambiar el estado'
         }
       }
-    } catch (error) {
+    } catch (e) {
       const errorMsg = 'Error al cambiar el estado del grupo'
       set({ error: errorMsg, loading: false })
       return { success: false, error: errorMsg }

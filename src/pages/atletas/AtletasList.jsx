@@ -27,7 +27,7 @@ const AtletasList = () => {
     {
       key: 'actions',
       title: 'Acciones',
-      render: (_, row) => (
+      render: () => (
         <div className="flex space-x-2">
           <button className="p-1 text-blue-600 hover:bg-blue-50 rounded">
             <FiEdit2 className="w-4 h-4" />

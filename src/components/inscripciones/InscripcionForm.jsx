@@ -4,10 +4,10 @@
  * Compatible con backend Django - Estructura: persona + atleta + inscripcion
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { FiSave, FiX, FiLoader, FiAlertCircle, FiUser, FiHeart, FiUsers, FiFileText, FiLock, FiInfo, FiAlertTriangle, FiCheckCircle } from 'react-icons/fi'
 import { Button, Card } from '../common'
-import { isValidEmail, isValidPhone } from '../../utils/validators'
+import { isValidEmail } from '../../utils/validators'
 import { InscripcionService } from '../../api'
 import { 
   MENSAJES_ERROR as INSCRIPCION_ERRORS,
@@ -15,7 +15,6 @@ import {
   esMenorDeEdad as utilEsMenorDeEdad,
   calcularEdad as utilCalcularEdad,
   determinarTipoInscripcion as utilDeterminarTipoInscripcion,
-  validarCedula,
   validarCedulaDetallado,
   LIMITES_EDAD,
 } from '../../utils/validacionesInscripcion'

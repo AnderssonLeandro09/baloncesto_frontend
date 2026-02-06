@@ -123,7 +123,7 @@ const PruebasFisicasCharts = ({ pruebas = [], onPrint }) => {
     const rankingsPorTipo = {}
     Object.keys(TIPO_LABELS).forEach(tipo => {
       const atletasConTipo = Object.entries(porAtleta)
-        .filter(([_, data]) => data.tipos[tipo]?.length > 0)
+        .filter(([, data]) => data.tipos[tipo]?.length > 0)
         .map(([id, data]) => {
           const resultados = data.tipos[tipo]
           const mejor = tipo === 'FUERZA' 

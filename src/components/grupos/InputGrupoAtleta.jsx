@@ -15,7 +15,6 @@ const Input = forwardRef(({
   onChange,
   onBlur,
   error,
-  touched,
   required = false,
   disabled = false,
   className = '',

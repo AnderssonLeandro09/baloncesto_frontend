@@ -374,12 +374,12 @@ export const usePaginatedData = (data = [], options = {}) => {
     // Información de paginación
     pagination: createPaginationState({ page: initialPage, pageSize: initialPageSize }),
     // Funciones de control
-    goToPage: (page) => {},
+    goToPage: () => {},
     nextPage: () => {},
     prevPage: () => {},
     firstPage: () => {},
     lastPage: () => {},
-    setPageSize: (size) => {},
+    setPageSize: () => {},
     reset: () => {},
   }
 }

@@ -100,7 +100,7 @@ export const categorizeError = (error) => {
     }
   }
 
-  const { status, data } = error.response
+  const { status } = error.response
 
   // Errores de validación
   if (status === 400) {

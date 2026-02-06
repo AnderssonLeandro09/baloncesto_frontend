@@ -75,7 +75,7 @@ const GrupoDetailModal = ({ grupo, onClose }) => {
 
             {atletasActivos.length > 0 ? (
               <div className="space-y-3">
-                {atletasActivos.map((atleta, index) => (
+                {atletasActivos.map((atleta) => (
                   <div
                     key={atleta.id}
                     className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"

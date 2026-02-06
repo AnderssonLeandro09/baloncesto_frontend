@@ -2,16 +2,6 @@ import React from 'react'
 import { FiEdit2, FiEye, FiCheck } from 'react-icons/fi'
 import { Table } from '../common'
 
-// Función para sanitizar texto y prevenir XSS en renderizado
-const sanitizeForDisplay = (text) => {
-  if (!text) return 'N/A'
-  return String(text)
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
 // Clasificación de rendimiento según tipo de prueba (basado en baloncesto)
 const clasificarRendimiento = (tipo, resultado) => {
   if (tipo === 'FUERZA') {

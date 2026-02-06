@@ -4,7 +4,6 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Input, Button } from '../common';
 import { FiSearch, FiUser, FiX } from 'react-icons/fi';
-import apiClient from '../../api/apiClient';
 import PruebaAntropometricaService from '../../api/pruebaAntropometricaService';
 import {
   VALIDACIONES_ANTROPOMETRICAS,
@@ -331,7 +330,9 @@ const PruebaAntropometricaForm = ({
   const onFormSubmit = async (data) => {
     // Si es edición, no enviar atleta ni fecha_registro
     if (isEditing) {
-      const { atleta, fecha_registro, ...editData } = data;
+      /* eslint-disable no-unused-vars */
+      const { atleta: _, fecha_registro: __, ...editData } = data;
+      /* eslint-enable no-unused-vars */
       await onSubmit(editData);
     } else {
       await onSubmit(data);

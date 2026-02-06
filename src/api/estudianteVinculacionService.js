@@ -94,7 +94,6 @@ const processError = (error) => {
         } else if (typeof value === 'object' && value !== null) {
           // Errores anidados (ej: persona.identification)
           Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-            const fullKey = `${key}.${nestedKey}`
             fieldErrors[nestedKey] = Array.isArray(nestedValue) 
               ? nestedValue.join('. ') 
               : String(nestedValue)

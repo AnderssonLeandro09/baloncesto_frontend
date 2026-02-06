@@ -1,7 +1,6 @@
 import { FiUsers, FiEdit2, FiEye, FiCalendar, FiTrendingUp } from 'react-icons/fi'
 
 const GrupoCard = ({ grupo, onEdit, onView, onToggleStatus }) => {
-  const atletasCount = grupo?.atletas?.length || 0
   const atletasHabilitados = grupo?.atletas?.filter(a => a?.inscripcion?.habilitada)?.length || 0
   const habilitado = !grupo.eliminado
 

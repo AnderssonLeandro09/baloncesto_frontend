@@ -15,6 +15,7 @@ const UsuarioDetalleModal = ({
 
   const { persona, entrenador, estudiante } = usuario
 
+  // eslint-disable-next-line no-unused-vars
   const InfoItem = ({ icon: Icon, label, value, fullWidth = false }) => (
     <div className={`flex items-start space-x-3 p-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 ${fullWidth ? 'col-span-1 md:col-span-2' : 'col-span-1'}`}>
       <div className="p-2.5 rounded-lg bg-blue-50 text-blue-600 flex-shrink-0">

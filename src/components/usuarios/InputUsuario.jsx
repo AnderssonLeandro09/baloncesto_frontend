@@ -15,7 +15,6 @@ const InputUsuario = React.forwardRef(({
   onChange,
   onBlur,
   error,
-  touched,
   required = false,
   disabled = false,
   className = '',

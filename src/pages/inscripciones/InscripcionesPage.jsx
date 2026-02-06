@@ -153,7 +153,7 @@ const InscripcionesPage = () => {
   const filteredInscripciones = (inscripciones || []).filter(item => {
     const persona = item.persona || {}
     // Sanitizar término de búsqueda para evitar problemas con caracteres especiales
-    const search = searchTerm.toLowerCase().replace(/[<>\"'&]/g, '')
+    const search = searchTerm.toLowerCase().replace(/[<>"'&]/g, '')
     
     if (!search) return true // Si no hay búsqueda, mostrar todos
     
@@ -251,7 +251,7 @@ const InscripcionesPage = () => {
         <InscripcionDetail
           inscripcion={inscripcionSeleccionada}
           onClose={handleCloseModal}
-          onEdit={(inscripcion) => {
+          onEdit={() => {
             setIsViewMode(false)
             // El modal se mantiene abierto pero cambia a modo edición
           }}

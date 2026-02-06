@@ -277,7 +277,7 @@ const PruebasFisicasPage = () => {
         }
       } catch (err) {
         // El error ya se maneja en el store con mensaje amigable
-        toast.error(error || 'No se pudieron cargar las pruebas físicas', {
+        toast.error(err.message || 'No se pudieron cargar las pruebas físicas', {
           duration: 4000,
           position: 'top-right',
         })

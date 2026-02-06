@@ -70,7 +70,7 @@ export const validateIdentification = (value) => {
   }
 
   // Limpiar espacios y guiones
-  const identification = value.replace(/[\s\-]/g, '').trim()
+  const identification = value.replace(/[\s-]/g, '').trim()
 
   if (!identification) {
     return { valid: false, message: 'La identificación es obligatoria' }
@@ -226,7 +226,7 @@ export const validatePhono = (value) => {
   }
 
   // Limpiar caracteres comunes
-  const cleaned = value.replace(/[\s\-\(\)\+]/g, '').trim()
+  const cleaned = value.replace(/[\s-()+]/g, '').trim()
 
   if (!cleaned) {
     return { valid: true }

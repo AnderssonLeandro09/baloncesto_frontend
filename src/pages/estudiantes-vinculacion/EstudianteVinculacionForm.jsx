@@ -47,7 +47,6 @@ const EstudianteVinculacionForm = ({ isOpen, onClose, serverErrors = {} }) => {
     register,
     handleSubmit,
     reset,
-    setValue,
     setError,
     clearErrors: clearFormErrors,
     formState: { errors }

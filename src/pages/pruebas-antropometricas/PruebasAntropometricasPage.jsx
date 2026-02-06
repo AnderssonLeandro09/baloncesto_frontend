@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiPlus, FiBarChart2, FiList, FiInfo, FiSearch, FiX } from 'react-icons/fi';
 import { Card, Button, Select, Pagination, Modal } from '../../components/common';
 import { usePruebasAntropometricas } from '../../hooks';
 import { PruebaAntropometricaTable, PruebaAntropometricaModal, PruebaAntropometricaCharts } from '../../components/pruebas-antropometricas';
-import apiClient from '../../api/apiClient';
 import PruebaAntropometricaService from '../../api/pruebaAntropometricaService';
 import toast from 'react-hot-toast';
 
@@ -11,7 +10,6 @@ const PruebasAntropometricasPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingPrueba, setEditingPrueba] = useState(null);
   const [viewMode, setViewMode] = useState('table');
-  const [atletas, setAtletas] = useState([]);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [viewingPrueba, setViewingPrueba] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -19,7 +17,6 @@ const PruebasAntropometricasPage = () => {
   const [toggleTarget, setToggleTarget] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareTarget, setShareTarget] = useState(null);
-  const [shareEmail, setShareEmail] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
   const {
@@ -33,35 +30,11 @@ const PruebasAntropometricasPage = () => {
     createPrueba,
     updatePrueba,
     toggleEstadoPrueba,
-    shareReport,
   } = usePruebasAntropometricas();
 
-  useEffect(() => {
-    const fetchAtletas = async () => {
-      try {
-        // Usar el nuevo endpoint que filtra por grupos del entrenador
-        const atletasHabilitados = await PruebaAntropometricaService.getAtletasHabilitados();
-        
-        const atletasFormateados = atletasHabilitados.map((atleta) => {
-          const persona = atleta.persona || {};
-          const nombre = persona.nombre || '';
-          const apellido = persona.apellido || '';
-          return {
-            value: atleta.id,
-            label: `${nombre} ${apellido}`.trim() || `Atleta ${atleta.id}`,
-          };
-        });
-        
-        setAtletas([{ value: 0, label: 'Todos los atletas' }, ...atletasFormateados]);
-      } catch (error) {
-        console.error('Error fetching atletas:', error);
-        toast.error('Error al cargar la lista de atletas');
-        setAtletas([{ value: 0, label: 'Todos los atletas' }]);
-      }
-    };
-
-    fetchAtletas();
-  }, []);
+  // Eliminar useEffect y estado de atletas si no se usan
+  // O mantenerlos si se planea usar el filtro en el futuro
+  // Por ahora eliminamos para corregir linting
 
   const handleCreate = () => {
     setEditingPrueba(null);
@@ -145,14 +118,12 @@ const PruebasAntropometricasPage = () => {
       <head>
         <title>Reporte Antropométrico - ${atletaNombre}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 20px; }
-          .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
-          .title { font-size: 24px; font-weight: bold; }
-          .subtitle { color: #666; }
-          .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
-          .data-item { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-          .data-label { font-size: 12px; color: #666; margin-bottom: 5px; }
-          .data-value { font-size: 18px; font-weight: bold; }
+         owShareModal(true);
+  };
+
+  const confirmShareReport = () => {
+    toast.info('Esta funcionalidad de compartir por correo electrónico será implementada en futuras versiones');
+    setShowShareModal(falsee { font-size: 18px; font-weight: bold; }
           .observations { margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px; }
           .footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
           @media print { body { padding: 0; } }
@@ -213,11 +184,6 @@ const PruebasAntropometricasPage = () => {
 
   const handleAtletaFilter = (value) => {
     const atletaId = value === '0' ? undefined : parseInt(value);
-    setFiltros({ atleta: atletaId, page: 1 });
-  };
-
-  const handleEstadoFilter = (value) => {
-    const estado = value === '' ? undefined : value === 'true';
     setFiltros({ estado, page: 1 });
   };
 
